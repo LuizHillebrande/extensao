@@ -24,6 +24,7 @@ No terminal:
 cd iterrogatio
 python -m venv .venv
 source .venv/bin/activate
+(se der erro, tente .\venv\Scripts\Activate.ps1)
 pip install -r ../requirements.txt
 python manage.py runserver
 ```
