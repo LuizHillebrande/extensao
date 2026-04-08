@@ -135,10 +135,6 @@ function App() {
     navigate("/auth");
   }
 
-  function goToLanding() {
-    navigate("/");
-  }
-
   // ÚNICO useEffect que gerencia câmera e análise
   useEffect(() => {
     if (location.pathname !== "/analise") {
@@ -156,6 +152,7 @@ function App() {
     }
 
     let localStream = null;
+    let videoElementForCleanup = null;
     let isMounted = true;
 
     async function initializeAnalysis() {
@@ -171,6 +168,7 @@ function App() {
 
         if (videoRef.current) {
           videoRef.current.srcObject = localStream;
+          videoElementForCleanup = videoRef.current;
           console.log("Stream atribuído ao videoRef");
         }
 
@@ -341,13 +339,6 @@ function App() {
           timerRef.current = setInterval(sendFrameOnce, 100);
         }
 
-        function stopLoop() {
-          if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-          }
-        }
-
         // 4. Iniciar loop de análise
         startLoop();
         console.log("Loop de análise iniciado a cada 100ms");
@@ -368,8 +359,8 @@ function App() {
       if (localStream) {
         localStream.getTracks().forEach((track) => track.stop());
       }
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      if (videoElementForCleanup) {
+        videoElementForCleanup.srcObject = null;
       }
       recordingActiveRef.current = false;
     };
@@ -381,10 +372,10 @@ function App() {
         <Route path="/" element={<LandingPage goToAuth={goToAuth} />} />
         <Route path="/auth" element={<AuthPage handleLogin={handleLogin} handleRegister={handleRegister} />} />
         <Route path="/menu" element={<MenuPage goToInterviews={goToInterviews} goToManageUser={goToManageUser} goToAnalysis={goToAnalysis} goToDashboards={goToDashboards} goToCompareReports={goToCompareReports} />} />
-        <Route path="/entrevistas" element={<InterviewsPage interviews={interviews} goToInterviews={goToInterviews} goToManageUser={goToManageUser} goToAnalysis={goToAnalysis} goToCompareReports={goToCompareReports} />} />
-        <Route path="/dashboards" element={<DashboardPage goToInterviews={goToInterviews} goToManageUser={goToManageUser} goToAnalysis={goToAnalysis} goToCompareReports={goToCompareReports} />} />
-        <Route path="/usuario" element={<UserPage goToInterviews={goToInterviews} goToManageUser={goToManageUser} goToAnalysis={goToAnalysis} goToCompareReports={goToCompareReports} />} />
-        <Route path="/comparar-relatorios" element={<ReportsPage goToInterviews={goToInterviews} goToManageUser={goToManageUser} goToAnalysis={goToAnalysis} goToCompareReports={goToCompareReports} />} />
+        <Route path="/entrevistas" element={<InterviewsPage interviews={interviews} />} />
+        <Route path="/dashboards" element={<DashboardPage />} />
+        <Route path="/usuario" element={<UserPage />} />
+        <Route path="/comparar-relatorios" element={<ReportsPage />} />
         <Route path="/analise" element={<AnalysisPage videoRef={videoRef} overlayCanvasRef={overlayCanvasRef} captureCanvasRef={captureCanvasRef} status={status} recordingState={recordingState} startRecording={startRecording} stopRecording={stopRecording} goToMenu={goToMenu} />} />
       </Routes>
     </div>

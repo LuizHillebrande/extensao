@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SideNav } from "./components/SideNav";
 
 export function LandingPage({ goToAuth }) {
   return (
@@ -86,29 +87,7 @@ export function MenuPage({
 }) {
   return (
     <div className="menu-view">
-      <div className="side-nav">
-        <div className="nav-logo">🎙️</div>
-        <nav className="nav-items">
-          <button
-            className="nav-item"
-            onClick={goToCompareReports}
-          >
-            Comparar relatórios
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToManageUser}
-          >
-            Gerenciar usuário
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToAnalysis}
-          >
-            Gravar vídeo
-          </button>
-        </nav>
-      </div>
+      <SideNav />
       <div className="menu-content">
         <h1 className="menu-title">Menu Principal</h1>
         <div className="menu-grid">
@@ -153,38 +132,10 @@ export function MenuPage({
   );
 }
 
-export function InterviewsPage({
-  interviews,
-  goToInterviews,
-  goToManageUser,
-  goToAnalysis,
-  goToCompareReports,
-}) {
+export function InterviewsPage({ interviews }) {
   return (
     <div className="interviews-view">
-      <div className="side-nav">
-        <div className="nav-logo">🎙️</div>
-        <nav className="nav-items">
-          <button
-            className="nav-item"
-            onClick={goToCompareReports}
-          >
-            Comparar relatórios
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToManageUser}
-          >
-            Gerenciar usuário
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToAnalysis}
-          >
-            Gravar vídeo
-          </button>
-        </nav>
-      </div>
+      <SideNav />
       <div className="interviews-content">
         <h1 className="interviews-title">MINHAS ENTREVISTAS</h1>
         <div className="interviews-list">
@@ -212,37 +163,10 @@ export function InterviewsPage({
   );
 }
 
-export function DashboardPage({
-  goToInterviews,
-  goToManageUser,
-  goToAnalysis,
-  goToCompareReports,
-}) {
+export function DashboardPage() {
   return (
     <div className="dashboard-view">
-      <div className="side-nav">
-        <div className="nav-logo">🎙️</div>
-        <nav className="nav-items">
-          <button
-            className="nav-item"
-            onClick={goToCompareReports}
-          >
-            Comparar relatórios
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToManageUser}
-          >
-            Gerenciar usuário
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToAnalysis}
-          >
-            Gravar vídeo
-          </button>
-        </nav>
-      </div>
+      <SideNav />
       <div className="dashboard-content">
         <h1>Dashboards</h1>
         <p>Seus dashboards e gráficos de desempenho aparecerão aqui.</p>
@@ -251,37 +175,10 @@ export function DashboardPage({
   );
 }
 
-export function UserPage({
-  goToInterviews,
-  goToManageUser,
-  goToAnalysis,
-  goToCompareReports,
-}) {
+export function UserPage() {
   return (
     <div className="user-view">
-      <div className="side-nav">
-        <div className="nav-logo">🎙️</div>
-        <nav className="nav-items">
-          <button
-            className="nav-item"
-            onClick={goToCompareReports}
-          >
-            Comparar relatórios
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToManageUser}
-          >
-            Gerenciar usuário
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToAnalysis}
-          >
-            Gravar vídeo
-          </button>
-        </nav>
-      </div>
+      <SideNav />
       <div className="user-content">
         <h1>Gerenciar Usuário</h1>
         <p>Suas configurações de perfil aparecerão aqui.</p>
@@ -290,37 +187,10 @@ export function UserPage({
   );
 }
 
-export function ReportsPage({
-  goToInterviews,
-  goToManageUser,
-  goToAnalysis,
-  goToCompareReports,
-}) {
+export function ReportsPage() {
   return (
     <div className="reports-view">
-      <div className="side-nav">
-        <div className="nav-logo">🎙️</div>
-        <nav className="nav-items">
-          <button
-            className="nav-item"
-            onClick={goToCompareReports}
-          >
-            Comparar relatórios
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToManageUser}
-          >
-            Gerenciar usuário
-          </button>
-          <button
-            className="nav-item"
-            onClick={goToAnalysis}
-          >
-            Gravar vídeo
-          </button>
-        </nav>
-      </div>
+      <SideNav />
       <div className="reports-content">
         <h1>Comparar Relatórios</h1>
         <p>Comparação de entrevistas aparecerá aqui.</p>

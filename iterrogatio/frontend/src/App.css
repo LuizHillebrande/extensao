@@ -194,6 +194,9 @@
   flex-direction: column;
   gap: 20px;
   min-height: 100vh;
+  flex-shrink: 0;
+  transition: width 0.28s ease, padding 0.28s ease;
+  box-sizing: border-box;
 }
 
 .nav-logo {
@@ -216,14 +219,103 @@
   color: #a0afc0;
   font-size: 13px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
   text-align: left;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #e8eefc;
+}
+
+.nav-item.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #e8eefc;
+  box-shadow: inset 3px 0 0 0 rgba(107, 163, 213, 0.85);
+}
+
+.nav-item-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.nav-item-abbrev {
+  display: none;
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: inherit;
+}
+
+.nav-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.side-nav-toggle {
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a0afc0;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: background-color 0.22s ease, color 0.22s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.side-nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8eefc;
+}
+
+.side-nav-toggle-icon {
+  display: block;
+}
+
+.side-nav.side-nav--collapsed {
+  width: 72px;
+  padding: 20px 10px;
+}
+
+.side-nav.side-nav--collapsed .nav-logo {
+  font-size: 22px;
+  padding: 6px 0;
+}
+
+.side-nav.side-nav--collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 8px;
+}
+
+.side-nav.side-nav--collapsed .nav-item-label {
+  display: none;
+}
+
+.side-nav.side-nav--collapsed .nav-item-abbrev {
+  display: block;
+}
+
+.side-nav.side-nav--collapsed .nav-item.active {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 /* =============== INTERVIEWS PAGE =============== */
@@ -474,5 +566,22 @@
 
 .recordingMeta {
   opacity: 0.95;
+}
+
+.nav-logo {
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.nav-logo-text {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.5px;
 }
 
