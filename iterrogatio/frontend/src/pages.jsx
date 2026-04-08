@@ -199,6 +199,19 @@ export function ReportsPage() {
   );
 }
 
+const OLHAR_LABELS = {
+  camera: "Na câmera (atento)",
+  baixo: "Para baixo",
+  cima: "Para cima",
+  lateral_esquerda: "Lateral esquerda",
+  lateral_direita: "Lateral direita",
+};
+
+function formatOlhar(key) {
+  if (!key) return "-";
+  return OLHAR_LABELS[key] ?? key;
+}
+
 export function AnalysisPage({
   videoRef,
   overlayCanvasRef,
@@ -209,6 +222,10 @@ export function AnalysisPage({
   stopRecording,
   goToMenu,
 }) {
+  const em = status.emocao;
+  const sc = status.scores;
+  const gz = status.gaze;
+
   return (
     <div className="analysis-view">
       <div className="analysis-header">
@@ -237,6 +254,47 @@ export function AnalysisPage({
         <div><strong>Rosto:</strong> {status.rosto_detectado ? "Detectado" : "Não detectado"}</div>
         <div><strong>Olhos:</strong> {status.olhos ? (status.olhos === "abertos" ? "Abertos" : "Fechados") : "-"}</div>
         <div><strong>Postura:</strong> {status.postura ? (status.postura === "boa" ? "Boa postura" : "Fora de posição") : "-"}</div>
+        {status.ear != null && (
+          <div><strong>EAR:</strong> {Number(status.ear).toFixed(3)}</div>
+        )}
+      </div>
+
+      <div className="status analysis-insights">
+        <div className="analysis-insights-title">Atenção e olhar</div>
+        <div><strong>Olhar:</strong> {gz ? formatOlhar(gz.olhar) : "-"}</div>
+        {gz && (
+          <div className="analysis-muted">
+            H {gz.horizontal} · V {gz.vertical}
+          </div>
+        )}
+        <div><strong>Atenção (0–10):</strong> {status.atencao != null ? status.atencao : "-"}</div>
+      </div>
+
+      <div className="status analysis-insights">
+        <div className="analysis-insights-title">Emoção (estimativa geométrica)</div>
+        {em ? (
+          <>
+            <div className="analysis-score-row"><span>Felicidade</span><span>{em.felicidade}</span></div>
+            <div className="analysis-score-row"><span>Confiança</span><span>{em.confianca}</span></div>
+            <div className="analysis-score-row"><span>Nervosismo</span><span>{em.nervosismo}</span></div>
+            <div className="analysis-score-row"><span>Tensão</span><span>{em.tensao}</span></div>
+          </>
+        ) : (
+          <div className="analysis-muted">—</div>
+        )}
+      </div>
+
+      <div className="status analysis-insights">
+        <div className="analysis-insights-title">Scores</div>
+        {sc ? (
+          <>
+            <div className="analysis-score-row"><span>Atenção</span><span>{sc.atencao}</span></div>
+            <div className="analysis-score-row"><span>Postura</span><span>{sc.postura}</span></div>
+            <div className="analysis-score-row"><span>Engajamento</span><span>{sc.engajamento}</span></div>
+          </>
+        ) : (
+          <div className="analysis-muted">—</div>
+        )}
       </div>
 
       <div className="status recordingBox">

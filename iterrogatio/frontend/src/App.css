@@ -483,6 +483,37 @@
   margin-bottom: 20px;
 }
 
+.analysis-insights {
+  margin-top: 12px;
+}
+
+.analysis-insights-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #888fa0;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.analysis-muted {
+  font-size: 12px;
+  color: #888fa0;
+  margin-top: 2px;
+}
+
+.analysis-score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.analysis-score-row:last-child {
+  border-bottom: none;
+}
+
 .btn-back {
   padding: 8px 14px !important;
   background: rgba(255, 255, 255, 0.08) !important;

@@ -36,6 +36,11 @@ function App() {
     rosto_detectado: false,
     olhos: null,
     postura: null,
+    ear: null,
+    gaze: null,
+    atencao: null,
+    emocao: null,
+    scores: null,
   });
 
   const [recordingState, setRecordingState] = useState({
@@ -279,6 +284,11 @@ function App() {
                 rosto_detectado: !!json.rosto_detectado,
                 olhos: json.olhos ?? null,
                 postura: json.postura ?? null,
+                ear: json.ear ?? null,
+                gaze: json.gaze ?? null,
+                atencao: json.atencao ?? null,
+                emocao: json.emocao ?? null,
+                scores: json.scores ?? null,
               });
               drawOverlay(json);
             }
