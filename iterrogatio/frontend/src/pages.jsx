@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SideNav } from "./components/SideNav";
+import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 
 export function LandingPage({ goToAuth }) {
   return (
@@ -237,6 +238,27 @@ export function AnalysisPage({
   const sc = status.scores;
   const gz = status.gaze;
 
+  const {
+    transcript,
+    interimTranscript,
+    isListening,
+    error,
+    startListening,
+    stopListening,
+    clearTranscript,
+  } = useSpeechRecognition();
+
+  const handleStartRecording = () => {
+    startRecording();
+    startListening();
+    clearTranscript();
+  };
+
+  const handleStopRecording = () => {
+    stopRecording();
+    stopListening();
+  };
+
   return (
     <div className="analysis-view">
       <div className="analysis-header">
@@ -310,10 +332,10 @@ export function AnalysisPage({
 
       <div className="status recordingBox">
         <div className="recordingButtons">
-          <button className="btn" onClick={startRecording} disabled={recordingState.isRecording}>
+          <button className="btn" onClick={handleStartRecording} disabled={recordingState.isRecording}>
             Iniciar
           </button>
-          <button className="btn danger" onClick={stopRecording} disabled={!recordingState.isRecording}>
+          <button className="btn danger" onClick={handleStopRecording} disabled={!recordingState.isRecording}>
             Parar
           </button>
         </div>
@@ -325,6 +347,31 @@ export function AnalysisPage({
           <div>Postura boa: {recordingState.seconds_posture_good.toFixed(1)}s</div>
           <div>Postura ruim: {recordingState.seconds_posture_bad.toFixed(1)}s</div>
         </div>
+      </div>
+
+      {error && (
+        <div className="status analysis-warning">
+          <div className="analysis-insights-title">⚠️ Erro de Microfone</div>
+          <div>{error}</div>
+        </div>
+      )}
+
+      <div className="status analysis-transcript">
+        <div className="analysis-insights-title">
+          🎤 Transcrição em Tempo Real {isListening && <span className="recording-indicator">● ao vivo</span>}
+        </div>
+        {transcript || interimTranscript ? (
+          <div className="transcript-text">
+            <span className="transcript-final">{transcript}</span>
+            <span className="transcript-interim">{interimTranscript}</span>
+          </div>
+        ) : (
+          <div className="analysis-muted">
+            {recordingState.isRecording
+              ? "Falando... o texto aparecerá aqui"
+              : "Clique em 'Iniciar' para começar a transcrição"}
+          </div>
+        )}
       </div>
     </div>
   );
