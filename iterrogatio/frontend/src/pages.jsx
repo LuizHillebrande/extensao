@@ -4,15 +4,26 @@ import { SideNav } from "./components/SideNav";
 export function LandingPage({ goToAuth }) {
   return (
     <div className="landing-view">
-      <div className="landing-content">
-        <h1 className="landing-title">Interrogatio</h1>
-        <p className="landing-subtitle">Análise Profissional de Entrevistas com IA.</p>
-        <p className="landing-description">
-          Transforme suas intrevistas em insights claros e objetivos com feedback automático e inteligente
-        </p>
-        <button className="btn btn-primary" onClick={goToAuth}>
+      <div className="landing-header">
+        <h1 className="landing-logo">Interrogatio</h1>
+        <button className="landing-login" onClick={goToAuth}>
           Logar
         </button>
+      </div>
+      <div className="landing-main">
+        <div className="landing-content">
+          <h1 className="landing-headline">Análise profissional de entrevistas com IA.</h1>
+          <p className="landing-subtitle">
+            Transforme suas entrevistas em insights claros e objetivos com feedback automático e inteligente
+          </p>
+        </div>
+        <div className="landing-hero">
+          <img 
+            src="/logoMenuHomem.png" 
+            alt="Illustration" 
+            className="landing-hero-image" 
+          />
+        </div>
       </div>
     </div>
   );
