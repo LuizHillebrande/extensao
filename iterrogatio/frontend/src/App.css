@@ -416,6 +416,10 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+.side-nav.side-nav--collapsed .nav-logo-text {
+  display: none;
+}
+
 /* =============== INTERVIEWS PAGE =============== */
 .interviews-view {
   display: flex;
