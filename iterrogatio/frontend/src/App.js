@@ -32,6 +32,11 @@ function App() {
     seconds_posture_bad: 0,
   });
 
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
+  const [authMessage, setAuthMessage] = useState(null);
+
   const [status, setStatus] = useState({
     rosto_detectado: false,
     olhos: null,
@@ -60,8 +65,9 @@ function App() {
   async function saveRecording() {
     const payload = { ...accumRef.current };
     try {
-      const res = await fetch("http://localhost:8000/api/face/save/", {
+      const res = await fetch("/api/face/save/", {
         method: "POST",
+        credentials: 'include',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -70,6 +76,114 @@ function App() {
     } catch (e) {
       // evita spam em caso de backend off
     }
+  }
+
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+
+  async function ensureAuthState() {
+    try {
+      await fetch('/api/auth/csrf/', {
+        credentials: 'include',
+      });
+      const response = await fetch('/api/auth/user/', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleLogin(payload) {
+    setAuthError(null);
+    setAuthMessage(null);
+    try {
+      const response = await fetch('/api/auth/login/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setAuthError(data.detail || 'Falha ao autenticar.');
+        return false;
+      }
+
+      setUser(data.user);
+      setAuthMessage('Login efetuado com sucesso.');
+      navigate('/menu');
+      return true;
+    } catch (error) {
+      setAuthError('Não foi possível conectar ao servidor.');
+      return false;
+    }
+  }
+
+  async function handleRegister(payload) {
+    setAuthError(null);
+    setAuthMessage(null);
+    try {
+      const response = await fetch('/api/auth/register/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        setAuthError(data.detail || 'Falha ao registrar.');
+        return false;
+      }
+
+      setUser(data.user);
+      setAuthMessage('Registrado com sucesso.');
+      navigate('/menu');
+      return true;
+    } catch (error) {
+      setAuthError('Não foi possível conectar ao servidor.');
+      return false;
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+      });
+    } catch (error) {
+      // ignore failure, clear local session state anyway
+    }
+    setUser(null);
+    navigate('/auth');
   }
 
   function startRecording() {
@@ -125,19 +239,11 @@ function App() {
   }
 
   function goToCompareReports() {
-    navigate("/comparar-relatorios");
-  }
-
-  function handleLogin() {
-    navigate("/menu");
-  }
-
-  function handleRegister() {
-    navigate("/menu");
+    navigate('/comparar-relatorios');
   }
 
   function goToAuth() {
-    navigate("/auth");
+    navigate('/auth');
   }
 
   // ÚNICO useEffect que gerencia câmera e análise
@@ -265,8 +371,9 @@ function App() {
             form.append("frame", blob, "frame.jpg");
 
             console.log("Enviando frame para API...");
-            const res = await fetch("http://localhost:8000/api/face/analyze/", {
+            const res = await fetch("/api/face/analyze/", {
               method: "POST",
+              credentials: 'include',
               body: form,
             });
             
@@ -376,17 +483,67 @@ function App() {
     };
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!authLoading && !user && !['/', '/auth'].includes(location.pathname)) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, location.pathname, navigate]);
+
+  useEffect(() => {
+    ensureAuthState();
+  }, []);
+
   return (
     <div className="page">
       <Routes>
         <Route path="/" element={<LandingPage goToAuth={goToAuth} />} />
-        <Route path="/auth" element={<AuthPage handleLogin={handleLogin} handleRegister={handleRegister} />} />
-        <Route path="/menu" element={<MenuPage goToInterviews={goToInterviews} goToManageUser={goToManageUser} goToAnalysis={goToAnalysis} goToDashboards={goToDashboards} goToCompareReports={goToCompareReports} />} />
-        <Route path="/entrevistas" element={<InterviewsPage interviews={interviews} />} />
-        <Route path="/dashboards" element={<DashboardPage />} />
-        <Route path="/usuario" element={<UserPage />} />
-        <Route path="/comparar-relatorios" element={<ReportsPage />} />
-        <Route path="/analise" element={<AnalysisPage videoRef={videoRef} overlayCanvasRef={overlayCanvasRef} captureCanvasRef={captureCanvasRef} status={status} recordingState={recordingState} startRecording={startRecording} stopRecording={stopRecording} goToMenu={goToMenu} />} />
+        <Route
+          path="/auth"
+          element={
+            <AuthPage
+              handleLogin={handleLogin}
+              handleRegister={handleRegister}
+              authError={authError}
+              authMessage={authMessage}
+            />
+          }
+        />
+        <Route
+          path="/menu"
+          element={
+            <MenuPage
+              goToInterviews={goToInterviews}
+              goToManageUser={goToManageUser}
+              goToAnalysis={goToAnalysis}
+              goToDashboards={goToDashboards}
+              goToCompareReports={goToCompareReports}
+              onLogout={handleLogout}
+            />
+          }
+        />
+        <Route
+          path="/entrevistas"
+          element={<InterviewsPage interviews={interviews} onLogout={handleLogout} />}
+        />
+        <Route path="/dashboards" element={<DashboardPage onLogout={handleLogout} />} />
+        <Route path="/usuario" element={<UserPage onLogout={handleLogout} />} />
+        <Route path="/comparar-relatorios" element={<ReportsPage onLogout={handleLogout} />} />
+        <Route
+          path="/analise"
+          element={
+            <AnalysisPage
+              videoRef={videoRef}
+              overlayCanvasRef={overlayCanvasRef}
+              captureCanvasRef={captureCanvasRef}
+              status={status}
+              recordingState={recordingState}
+              startRecording={startRecording}
+              stopRecording={stopRecording}
+              goToMenu={goToMenu}
+              onLogout={handleLogout}
+            />
+          }
+        />
       </Routes>
     </div>
   );

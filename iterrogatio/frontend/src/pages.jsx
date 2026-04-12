@@ -30,56 +30,139 @@ export function LandingPage({ goToAuth }) {
   );
 }
 
-export function AuthPage({ handleLogin, handleRegister }) {
+export function AuthPage({ handleLogin, handleRegister, authError, authMessage }) {
   const [authMode, setAuthMode] = useState("login");
+  const [fields, setFields] = useState({
+    username: "",
+    email: "",
+    login: "",
+    password: "",
+    confirmPassword: "",
+    rememberMe: false,
+  });
+  const [localError, setLocalError] = useState(null);
+
+  const onChange = (key, value) => {
+    setFields((prev) => ({ ...prev, [key]: value }));
+    setLocalError(null);
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setLocalError(null);
+
+    if (authMode === "login") {
+      if (!fields.login || !fields.password) {
+        setLocalError("Preencha usuário/e-mail e senha.");
+        return;
+      }
+      await handleLogin({
+        login: fields.login,
+        password: fields.password,
+        remember_me: fields.rememberMe,
+      });
+      return;
+    }
+
+    if (!fields.username || !fields.email || !fields.password || !fields.confirmPassword) {
+      setLocalError("Preencha todos os campos.");
+      return;
+    }
+    if (fields.password !== fields.confirmPassword) {
+      setLocalError("As senhas não coincidem.");
+      return;
+    }
+
+    await handleRegister({
+      username: fields.username,
+      email: fields.email,
+      password1: fields.password,
+      password2: fields.confirmPassword,
+    });
+  };
 
   return (
     <div className="auth-view">
       <div className="auth-card">
         <h1 className="auth-logo">Interrogatio</h1>
-        <p className="auth-mode-label">
-          {authMode === "login" ? "LOGIN" : "CADASTRO"}
-        </p>
-        
-        <form className="auth-form">
+        <p className="auth-mode-label">{authMode === "login" ? "LOGIN" : "CADASTRO"}</p>
+
+        <form className="auth-form" onSubmit={submit}>
+          {authMode === "register" && (
+            <input
+              type="text"
+              placeholder="USUÁRIO"
+              className="auth-input"
+              value={fields.username}
+              onChange={(e) => onChange('username', e.target.value)}
+            />
+          )}
           <input
-            type="email"
-            placeholder="E-MAIL"
+            type="text"
+            placeholder={authMode === "login" ? "USUÁRIO OU E-MAIL" : "E-MAIL"}
             className="auth-input"
+            value={authMode === "login" ? fields.login : fields.email}
+            onChange={(e) => onChange(authMode === "login" ? 'login' : 'email', e.target.value)}
           />
           <input
             type="password"
             placeholder="SENHA"
             className="auth-input"
+            value={fields.password}
+            onChange={(e) => onChange('password', e.target.value)}
           />
           {authMode === "register" && (
             <input
               type="password"
               placeholder="CONFIRMAR SENHA"
               className="auth-input"
+              value={fields.confirmPassword}
+              onChange={(e) => onChange('confirmPassword', e.target.value)}
             />
           )}
-          <button
-            type="button"
-            className="btn btn-auth"
-            onClick={authMode === "login" ? handleLogin : handleRegister}
-          >
+          <label className="auth-checkbox">
+            <input
+              type="checkbox"
+              checked={fields.rememberMe}
+              onChange={(e) => onChange('rememberMe', e.target.checked)}
+            />
+            Lembrar sessão
+          </label>
+          <button type="submit" className="btn btn-auth">
             {authMode === "login" ? "LOGIN" : "CRIAR CONTA"}
           </button>
         </form>
 
+        {(localError || authError || authMessage) && (
+          <div className={`message ${authMessage ? 'success' : 'error'}`}>
+            {localError || authError || authMessage}
+          </div>
+        )}
+
         <div className="auth-toggle">
           {authMode === "login" ? (
             <p>
-              Não tem conta?{" "}
-              <a href="#register" onClick={(e) => { e.preventDefault(); setAuthMode("register"); }}>
+              Não tem conta?{' '}
+              <a
+                href="#register"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setAuthMode('register');
+                }}
+              >
                 REGISTRE-SE
               </a>
             </p>
           ) : (
             <p>
-              Já tem conta?{" "}
-              <a href="#login" onClick={(e) => { e.preventDefault(); setAuthMode("login"); }}>
+              Já tem conta?{' '}
+              <a
+                href="#login"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setAuthMode('login');
+                }}
+              >
                 FAÇA LOGIN
               </a>
             </p>
@@ -96,10 +179,11 @@ export function MenuPage({
   goToAnalysis,
   goToDashboards,
   goToCompareReports,
+  onLogout,
 }) {
   return (
     <div className="menu-view">
-      <SideNav />
+      <SideNav onLogout={onLogout} />
       <div className="menu-content">
         <h1 className="menu-title">Menu Principal</h1>
         <div className="menu-grid">
@@ -144,10 +228,10 @@ export function MenuPage({
   );
 }
 
-export function InterviewsPage({ interviews }) {
+export function InterviewsPage({ interviews, onLogout }) {
   return (
     <div className="interviews-view">
-      <SideNav />
+      <SideNav onLogout={onLogout} />
       <div className="interviews-content">
         <h1 className="interviews-title">MINHAS ENTREVISTAS</h1>
         <div className="interviews-list">
@@ -175,10 +259,10 @@ export function InterviewsPage({ interviews }) {
   );
 }
 
-export function DashboardPage() {
+export function DashboardPage({ onLogout }) {
   return (
     <div className="dashboard-view">
-      <SideNav />
+      <SideNav onLogout={onLogout} />
       <div className="dashboard-content">
         <h1>Dashboards</h1>
         <p>Seus dashboards e gráficos de desempenho aparecerão aqui.</p>
@@ -187,10 +271,10 @@ export function DashboardPage() {
   );
 }
 
-export function UserPage() {
+export function UserPage({ onLogout }) {
   return (
     <div className="user-view">
-      <SideNav />
+      <SideNav onLogout={onLogout} />
       <div className="user-content">
         <h1>Gerenciar Usuário</h1>
         <p>Suas configurações de perfil aparecerão aqui.</p>
@@ -199,10 +283,10 @@ export function UserPage() {
   );
 }
 
-export function ReportsPage() {
+export function ReportsPage({ onLogout }) {
   return (
     <div className="reports-view">
-      <SideNav />
+      <SideNav onLogout={onLogout} />
       <div className="reports-content">
         <h1>Comparar Relatórios</h1>
         <p>Comparação de entrevistas aparecerá aqui.</p>
@@ -233,6 +317,7 @@ export function AnalysisPage({
   startRecording,
   stopRecording,
   goToMenu,
+  onLogout,
 }) {
   const em = status.emocao;
   const sc = status.scores;

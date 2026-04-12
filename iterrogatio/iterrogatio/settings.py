@@ -12,24 +12,33 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
+from decouple import Config, Csv, RepositoryEnv
+from django.core.exceptions import ImproperlyConfigured
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / '.env'
+if not ENV_PATH.exists():
+    ENV_PATH = BASE_DIR.parent / '.env'
+if not ENV_PATH.exists():
+    ENV_PATH = BASE_DIR.parent.parent / '.env'
+config = Config(RepositoryEnv(ENV_PATH)) if ENV_PATH.exists() else Config()
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-d9wq(5p19f^tyt9e=whmzu4ah@9y^_&tn*5bqwic-ell6e)wm0'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# SECURITY
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default='django-insecure-d9wq(5p19f^tyt9e=whmzu4ah@9y^_&tn*5bqwic-ell6e)wm0',
+)
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1',
+    cast=Csv(),
+)
 
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'core',
+    'usuarios',
 ]
 
 MIDDLEWARE = [
@@ -57,7 +67,7 @@ ROOT_URLCONF = 'iterrogatio.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -75,18 +85,39 @@ WSGI_APPLICATION = 'iterrogatio.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+DB_NAME = config('DB_NAME', default=None)
+DB_USER = config('DB_USER', default='postgres')
+DB_PASSWORD = config('DB_PASSWORD', default='')
+DB_HOST = config('DB_HOST', default='localhost')
+DB_PORT = config('DB_PORT', default=5432, cast=int)
+DB_CONNECT_TIMEOUT = config('DB_CONNECT_TIMEOUT', default=10, cast=int)
+CONN_MAX_AGE = config('CONN_MAX_AGE', default=600, cast=int)
+
+if not DB_NAME:
+    raise ImproperlyConfigured(
+        'DB_NAME environment variable is required. SQLite fallback has been removed.'
+    )
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
+        'CONN_MAX_AGE': CONN_MAX_AGE,
+        'OPTIONS': {
+            'connect_timeout': DB_CONNECT_TIMEOUT,
+        },
     }
 }
+
+if DB_PASSWORD != '':
+    DATABASES['default']['PASSWORD'] = DB_PASSWORD
 
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -105,27 +136,52 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
-
 STATIC_URL = 'static/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
 
 # Dev: permitir frontend React (create-react-app)
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    'http://localhost:3000',
 ]
+CORS_ALLOW_CREDENTIALS = True
+CSRF_COOKIE_HTTPONLY = False
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}

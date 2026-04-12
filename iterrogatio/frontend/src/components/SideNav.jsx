@@ -6,7 +6,7 @@ function navItemIsActive(pathname, itemPath) {
   return !!matchPath({ path: itemPath, end: true }, pathname);
 }
 
-export function SideNav() {
+export function SideNav({ onLogout }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -70,6 +70,12 @@ export function SideNav() {
           );
         })}
       </nav>
+      {onLogout && (
+        <button type="button" className="nav-item logout-button" onClick={onLogout}>
+          <span className="nav-item-icon">🚪</span>
+          <span className="nav-item-label">Sair</span>
+        </button>
+      )}
     </div>
   );
 }

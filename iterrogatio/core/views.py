@@ -1,10 +1,14 @@
-from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-import json
 from django.views.decorators.http import require_POST
 
+import json
+
+@login_required
 def home(request):
-    return HttpResponse("Funcionando 🔥")
+    return render(request, 'home.html', {'user': request.user})
 
 
 @csrf_exempt
