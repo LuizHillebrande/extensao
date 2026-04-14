@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
-from decouple import Config, Csv, RepositoryEnv
+from decouple import Config, Csv, RepositoryEmpty, RepositoryEnv
 from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -22,7 +22,12 @@ if not ENV_PATH.exists():
     ENV_PATH = BASE_DIR.parent / '.env'
 if not ENV_PATH.exists():
     ENV_PATH = BASE_DIR.parent.parent / '.env'
-config = Config(RepositoryEnv(ENV_PATH)) if ENV_PATH.exists() else Config()
+# Sem .env, Config() sozinho falha (falta `repository`). Os defaults abaixo vêm do código.
+config = (
+    Config(RepositoryEnv(str(ENV_PATH)))
+    if ENV_PATH.exists()
+    else Config(RepositoryEmpty())
+)
 
 
 # SECURITY
@@ -55,6 +60,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -120,24 +126,21 @@ if DB_PASSWORD != '':
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'NAME': 'usuarios.password_validators.MinimumLengthValidatorPT',
+        'OPTIONS': {'min_length': 8},
     },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'usuarios.password_validators.ContainsDigitValidator'},
+    {'NAME': 'usuarios.password_validators.ContainsSpecialCharacterValidator'},
+    {'NAME': 'usuarios.password_validators.UserAttributeSimilarityValidatorPT'},
+    {'NAME': 'usuarios.password_validators.CommonPasswordValidatorPT'},
+    {'NAME': 'usuarios.password_validators.NumericPasswordValidatorPT'},
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+LANGUAGE_CODE = 'pt-br'
+TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
@@ -163,6 +166,10 @@ CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+# LLM — Groq (https://console.groq.com/)
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+GROQ_MODEL = config('GROQ_MODEL', default='llama-3.1-8b-instant')
 
 LOGGING = {
     'version': 1,

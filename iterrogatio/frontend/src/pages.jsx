@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { SideNav } from "./components/SideNav";
-import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
-
 export function LandingPage({ goToAuth }) {
   return (
     <div className="landing-view">
@@ -134,7 +132,14 @@ export function AuthPage({ handleLogin, handleRegister, authError, authMessage }
         </form>
 
         {(localError || authError || authMessage) && (
-          <div className={`message ${authMessage ? 'success' : 'error'}`}>
+          <div
+            className={`message ${authMessage ? "success" : "error"}`}
+            style={
+              !authMessage && (localError || authError)
+                ? { whiteSpace: "pre-line", textAlign: "left" }
+                : undefined
+            }
+          >
             {localError || authError || authMessage}
           </div>
         )}
@@ -316,33 +321,19 @@ export function AnalysisPage({
   recordingState,
   startRecording,
   stopRecording,
+  transcript,
+  interimTranscript,
+  isListening,
+  speechError,
+  llmAnalysis,
+  llmLoading,
+  llmError,
   goToMenu,
   onLogout,
 }) {
   const em = status.emocao;
   const sc = status.scores;
   const gz = status.gaze;
-
-  const {
-    transcript,
-    interimTranscript,
-    isListening,
-    error,
-    startListening,
-    stopListening,
-    clearTranscript,
-  } = useSpeechRecognition();
-
-  const handleStartRecording = () => {
-    startRecording();
-    startListening();
-    clearTranscript();
-  };
-
-  const handleStopRecording = () => {
-    stopRecording();
-    stopListening();
-  };
 
   return (
     <div className="analysis-view">
@@ -369,6 +360,11 @@ export function AnalysisPage({
       </div>
 
       <div className="status">
+        {status.analiseAviso && (
+          <div className="analysis-warning" role="alert">
+            <strong>Serviço de análise:</strong> {status.analiseAviso}
+          </div>
+        )}
         <div><strong>Rosto:</strong> {status.rosto_detectado ? "Detectado" : "Não detectado"}</div>
         <div><strong>Olhos:</strong> {status.olhos ? (status.olhos === "abertos" ? "Abertos" : "Fechados") : "-"}</div>
         <div><strong>Postura:</strong> {status.postura ? (status.postura === "boa" ? "Boa postura" : "Fora de posição") : "-"}</div>
@@ -417,10 +413,10 @@ export function AnalysisPage({
 
       <div className="status recordingBox">
         <div className="recordingButtons">
-          <button className="btn" onClick={handleStartRecording} disabled={recordingState.isRecording}>
+          <button className="btn" onClick={startRecording} disabled={recordingState.isRecording}>
             Iniciar
           </button>
-          <button className="btn danger" onClick={handleStopRecording} disabled={!recordingState.isRecording}>
+          <button className="btn danger" onClick={stopRecording} disabled={!recordingState.isRecording}>
             Parar
           </button>
         </div>
@@ -434,10 +430,57 @@ export function AnalysisPage({
         </div>
       </div>
 
-      {error && (
+      {speechError && (
         <div className="status analysis-warning">
           <div className="analysis-insights-title">⚠️ Erro de Microfone</div>
-          <div>{error}</div>
+          <div>{speechError}</div>
+        </div>
+      )}
+
+      {(llmLoading || llmError || llmAnalysis) && (
+        <div className="status analysis-llm">
+          <div className="analysis-insights-title">Análise da entrevista (IA)</div>
+          {llmLoading && <div className="analysis-muted">A gerar feedback com base na transcrição…</div>}
+          {llmError && !llmLoading && (
+            <div className="analysis-warning" role="alert">
+              {llmError}
+            </div>
+          )}
+          {llmAnalysis && !llmLoading && (
+            <div className="llm-result">
+              {["coerencia", "dominio_assunto", "clareza_objetividade", "organizacao_ideias"].map((key) => {
+                const block = llmAnalysis[key];
+                if (!block || typeof block !== "object") return null;
+                const labels = {
+                  coerencia: "Coerência",
+                  dominio_assunto: "Domínio do assunto",
+                  clareza_objetividade: "Clareza e objetividade",
+                  organizacao_ideias: "Organização das ideias",
+                };
+                return (
+                  <div key={key} className="llm-criterion">
+                    <div className="llm-criterion-head">
+                      <strong>{labels[key]}</strong>
+                      <span className="llm-nota">{block.nota != null ? Number(block.nota).toFixed(1) : "—"} / 10</span>
+                    </div>
+                    {block.justificativa && (
+                      <p className="llm-justificativa">{block.justificativa}</p>
+                    )}
+                  </div>
+                );
+              })}
+              {Array.isArray(llmAnalysis.sugestoes) && llmAnalysis.sugestoes.length > 0 && (
+                <div className="llm-sugestoes">
+                  <strong>Sugestões</strong>
+                  <ul>
+                    {llmAnalysis.sugestoes.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

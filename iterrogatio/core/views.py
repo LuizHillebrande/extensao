@@ -89,3 +89,33 @@ def save_recording(request):
     )
 
     return JsonResponse({"id": rec.id})
+
+
+@csrf_exempt
+@require_POST
+def analyze_interview_transcript(request):
+    """
+    Envia a transcrição ao LLM com o prompt fixo de RH (ver interview_llm.py).
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Autenticação necessária."}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") if request.body else "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+
+    transcript = (payload.get("transcript") or "").strip()
+    if not transcript:
+        return JsonResponse({"detail": "Transcrição vazia."}, status=400)
+
+    from .services.interview_llm import analyze_transcript_with_llm
+
+    try:
+        result = analyze_transcript_with_llm(transcript)
+    except RuntimeError as e:
+        return JsonResponse({"detail": str(e)}, status=503)
+    except Exception as e:
+        return JsonResponse({"detail": f"Falha na análise: {e}"}, status=502)
+
+    return JsonResponse(result)

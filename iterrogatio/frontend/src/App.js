@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 import {
@@ -11,6 +11,57 @@ import {
   ReportsPage,
   AnalysisPage,
 } from "./pages";
+import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
+
+/** Mensagens do Django (UserCreationForm, etc.), sem repetir o mesmo texto duas vezes. */
+function formatAuthApiError(data) {
+  const detail = data?.detail;
+  const errors = data?.errors;
+  if (!errors || typeof errors !== "object") {
+    return detail || "Erro.";
+  }
+
+  const labels = {
+    username: "Usuário",
+    email: "E-mail",
+    password1: "Senha",
+    password2: "Confirmar senha",
+    __all__: "Formulário",
+  };
+
+  const fieldOrder = ["username", "email", "password1", "password2", "__all__"];
+  const seenMsg = new Set();
+  const bullets = [];
+
+  const pushField = (field) => {
+    const msgs = errors[field];
+    if (!Array.isArray(msgs)) return;
+    const label = labels[field] || field;
+    for (const raw of msgs) {
+      const text = String(raw).trim();
+      if (!text) continue;
+      const key = text.toLowerCase();
+      if (seenMsg.has(key)) continue;
+      seenMsg.add(key);
+      bullets.push(`• ${label}: ${text}`);
+    }
+  };
+
+  for (const f of fieldOrder) {
+    if (errors[f]) pushField(f);
+  }
+  for (const f of Object.keys(errors)) {
+    if (!fieldOrder.includes(f)) pushField(f);
+  }
+
+  if (bullets.length === 0) {
+    return detail || "Erro de validação.";
+  }
+
+  return (
+    "O servidor não aceitou estes dados. Motivo:\n\n" + bullets.join("\n")
+  );
+}
 
 function App() {
   const navigate = useNavigate();
@@ -46,6 +97,7 @@ function App() {
     atencao: null,
     emocao: null,
     scores: null,
+    analiseAviso: null,
   });
 
   const [recordingState, setRecordingState] = useState({
@@ -55,6 +107,20 @@ function App() {
     seconds_posture_good: 0,
     seconds_posture_bad: 0,
   });
+
+  const {
+    transcript,
+    interimTranscript,
+    isListening,
+    error: speechError,
+    startListening,
+    stopListening,
+    clearTranscript,
+  } = useSpeechRecognition();
+
+  const [llmAnalysis, setLlmAnalysis] = useState(null);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmError, setLlmError] = useState(null);
 
   const [interviews] = useState([
     { id: 1, title: "Entrevista 01", date: "12/10/2025", status: "Concluída" },
@@ -126,7 +192,7 @@ function App() {
 
       const data = await response.json();
       if (!response.ok) {
-        setAuthError(data.detail || 'Falha ao autenticar.');
+        setAuthError(formatAuthApiError(data) || "Falha ao autenticar.");
         return false;
       }
 
@@ -156,7 +222,7 @@ function App() {
 
       const data = await response.json();
       if (!response.ok) {
-        setAuthError(data.detail || 'Falha ao registrar.');
+        setAuthError(formatAuthApiError(data) || "Falha ao registrar.");
         return false;
       }
 
@@ -186,7 +252,7 @@ function App() {
     navigate('/auth');
   }
 
-  function startRecording() {
+  const startRecording = useCallback(() => {
     if (recordingActiveRef.current) return;
     recordingActiveRef.current = true;
     facePresentRef.current = false;
@@ -207,16 +273,57 @@ function App() {
       seconds_posture_good: 0,
       seconds_posture_bad: 0,
     });
-  }
+    setLlmAnalysis(null);
+    setLlmError(null);
+    startListening();
+    clearTranscript();
+  }, [startListening, clearTranscript]);
 
-  function stopRecording() {
+  const stopRecording = useCallback(() => {
     if (!recordingActiveRef.current) return;
     recordingActiveRef.current = false;
     facePresentRef.current = false;
     lastTickAtRef.current = null;
     setRecordingState((prev) => ({ ...prev, isRecording: false }));
+    stopListening();
+
+    const fullTranscript = `${transcript}${interimTranscript || ""}`
+      .trim()
+      .replace(/\s+/g, " ");
+
     saveRecording();
-  }
+
+    if (!fullTranscript) {
+      setLlmError("Nenhum texto foi transcrito para analisar.");
+      setLlmAnalysis(null);
+      return;
+    }
+
+    setLlmLoading(true);
+    setLlmError(null);
+    setLlmAnalysis(null);
+
+    fetch("/api/interview/analyze-transcript/", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: JSON.stringify({ transcript: fullTranscript }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || `Erro ${res.status}`);
+        }
+        setLlmAnalysis(data);
+      })
+      .catch((e) => {
+        setLlmError(e.message || "Falha ao analisar a transcrição.");
+      })
+      .finally(() => setLlmLoading(false));
+  }, [transcript, interimTranscript, stopListening]);
 
   function goToAnalysis() {
     navigate("/analise");
@@ -269,8 +376,15 @@ function App() {
     async function initializeAnalysis() {
       console.log("Inicializando análise facial...");
       try {
-        // 1. Obter stream de câmera
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        // 1. Obter stream de câmera (frente quando existir; evita quadro 0×0 em vários browsers)
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "user" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
 
         if (!isMounted) {
           localStream.getTracks().forEach((track) => track.stop());
@@ -283,7 +397,7 @@ function App() {
           console.log("Stream atribuído ao videoRef");
         }
 
-        // 2. Esperar o vídeo estar pronto
+        // 2. Esperar metadados + reprodução ativa e dimensões > 0 (senão o canvas manda JPEG preto)
         const video = videoRef.current;
         if (!video) return;
 
@@ -299,7 +413,27 @@ function App() {
           }
         });
 
+        try {
+          await video.play();
+        } catch (e) {
+          console.warn("video.play():", e);
+        }
+
+        const deadline = performance.now() + 8000;
+        while (
+          isMounted &&
+          (video.videoWidth === 0 || video.videoHeight === 0) &&
+          performance.now() < deadline
+        ) {
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+
         if (!isMounted) return;
+        if (!video.videoWidth || !video.videoHeight) {
+          console.error(
+            "Vídeo sem dimensões (videoWidth/videoHeight). Verifique permissões da câmera e drivers."
+          );
+        }
 
         // 3. Setup de funções de análise
         function ensureCanvasesSized() {
@@ -396,6 +530,11 @@ function App() {
                 atencao: json.atencao ?? null,
                 emocao: json.emocao ?? null,
                 scores: json.scores ?? null,
+                analiseAviso: json.rosto_detectado
+                  ? null
+                  : json.detail
+                    ? String(json.detail)
+                    : null,
               });
               drawOverlay(json);
             }
@@ -539,6 +678,13 @@ function App() {
               recordingState={recordingState}
               startRecording={startRecording}
               stopRecording={stopRecording}
+              transcript={transcript}
+              interimTranscript={interimTranscript}
+              isListening={isListening}
+              speechError={speechError}
+              llmAnalysis={llmAnalysis}
+              llmLoading={llmLoading}
+              llmError={llmError}
               goToMenu={goToMenu}
               onLogout={handleLogout}
             />

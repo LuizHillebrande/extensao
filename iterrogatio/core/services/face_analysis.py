@@ -257,12 +257,14 @@ class FaceAnalyzer:
                 "Tente reinstalar uma versão com FaceMesh (ex: `mediapipe==0.10.14`)."
             )
 
+        # static_image_mode=True: cada frame é independente (mais robusto com JPEG da webcam).
+        # Confiança um pouco mais baixa ajuda em luz fraca / rostos parcialmente fora do quadro.
         self._mesh = mp.solutions.face_mesh.FaceMesh(
-            static_image_mode=False,
+            static_image_mode=True,
             max_num_faces=1,
             refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5,
+            min_detection_confidence=0.35,
+            min_tracking_confidence=0.35,
         )
 
     def analyze_bgr(self, image_bgr: np.ndarray) -> dict:
