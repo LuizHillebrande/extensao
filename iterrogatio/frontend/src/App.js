@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
-import {
-  LandingPage,
-  AuthPage,
-  MenuPage,
-  InterviewsPage,
-  DashboardPage,
-  UserPage,
-  ReportsPage,
-  AnalysisPage,
-} from "./pages";
+import { ProfessionalAreaModal } from "./components/ProfessionalAreaModal";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
+import {
+    AnalysisPage,
+    AuthPage,
+    DashboardPage,
+    InterviewsPage,
+    LandingPage,
+    MenuPage,
+    ReportsPage,
+    UserPage,
+} from "./pages";
 
 /** Mensagens do Django (UserCreationForm, etc.), sem repetir o mesmo texto duas vezes. */
 function formatAuthApiError(data) {
@@ -119,8 +120,14 @@ function App() {
   } = useSpeechRecognition();
 
   const [llmAnalysis, setLlmAnalysis] = useState(null);
-  const [llmLoading, setLlmLoading] = useState(false);
   const [llmError, setLlmError] = useState(null);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [recordingId, setRecordingId] = useState(null);
+
+  const [showProfessionalModal, setShowProfessionalModal] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [report, setReport] = useState(null);
+  const [reportError, setReportError] = useState(null);
 
   const [interviews] = useState([
     { id: 1, title: "Entrevista 01", date: "12/10/2025", status: "Concluída" },
@@ -137,10 +144,13 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) return;
-      await res.json();
+      if (!res.ok) return null;
+      const data = await res.json();
+      setRecordingId(data.id);
+      return data.id;
     } catch (e) {
       // evita spam em caso de backend off
+      return null;
     }
   }
 
@@ -279,7 +289,7 @@ function App() {
     clearTranscript();
   }, [startListening, clearTranscript]);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     if (!recordingActiveRef.current) return;
     recordingActiveRef.current = false;
     facePresentRef.current = false;
@@ -291,10 +301,16 @@ function App() {
       .trim()
       .replace(/\s+/g, " ");
 
-    saveRecording();
+    const recId = await saveRecording();
 
     if (!fullTranscript) {
       setLlmError("Nenhum texto foi transcrito para analisar.");
+      setLlmAnalysis(null);
+      return;
+    }
+
+    if (!recId) {
+      setLlmError("Falha ao salvar a gravação.");
       setLlmAnalysis(null);
       return;
     }
@@ -310,7 +326,7 @@ function App() {
         "Content-Type": "application/json",
         "X-CSRFToken": getCookie("csrftoken"),
       },
-      body: JSON.stringify({ transcript: fullTranscript }),
+      body: JSON.stringify({ transcript: fullTranscript, recording_id: recId }),
     })
       .then(async (res) => {
         const data = await res.json();
@@ -318,6 +334,7 @@ function App() {
           throw new Error(data.detail || `Erro ${res.status}`);
         }
         setLlmAnalysis(data);
+        setShowProfessionalModal(true);
       })
       .catch((e) => {
         setLlmError(e.message || "Falha ao analisar a transcrição.");
@@ -347,6 +364,64 @@ function App() {
 
   function goToCompareReports() {
     navigate('/comparar-relatorios');
+  }
+
+  async function handleGenerateReport(professionalArea) {
+    if (!llmAnalysis) {
+      setReportError("Nenhuma análise disponível.");
+      return;
+    }
+
+    setReportLoading(true);
+    setReportError(null);
+    setReport(null);
+
+    try {
+      const res = await fetch("/api/interview/generate-report/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+          interview_analysis: llmAnalysis,
+          professional_area: professionalArea,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || `Erro ${res.status}`);
+      }
+
+      setReport(data);
+      setShowProfessionalModal(false);
+    } catch (e) {
+      setReportError(e.message || "Falha ao gerar o relatório.");
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
+  function handleCancelReport() {
+    setShowProfessionalModal(false);
+    setReportError(null);
+  }
+
+  function handleSaveReport() {
+    if (!report) return;
+
+    const blob = new Blob([report.report], { type: 'text/plain;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const timestamp = new Date(report.generated_at).toISOString().replace(/[:.]/g, '-');
+    const filename = `relatorio_${report.professional_area.replace(/\s+/g, '_')}_${timestamp}.txt`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
   }
 
   function goToAuth() {
@@ -691,6 +766,93 @@ function App() {
           }
         />
       </Routes>
+
+      <ProfessionalAreaModal
+        isOpen={showProfessionalModal}
+        onGenerate={handleGenerateReport}
+        onCancel={handleCancelReport}
+        isLoading={reportLoading}
+      />
+
+      {report && (
+        <div className="report-display">
+          <div className="report-container">
+            <div className="report-header">
+              <div className="report-header-title">
+                <span className="report-label">Relatório</span>
+                <h2>{report.professional_area}</h2>
+              </div>
+              <div className="report-header-actions">
+                <div className="report-status-chip">Pronto para salvar</div>
+                <button
+                  className="btn secondary close-report"
+                  onClick={() => setReport(null)}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+
+            <div className="report-summary">
+              <div className="report-pill">Área: {report.professional_area}</div>
+              <div className="report-short">
+                <p>
+                  Relatório gerado com base na análise da entrevista. As conclusões abaixo
+                  foram adaptadas para a área profissional selecionada.
+                </p>
+              </div>
+            </div>
+
+            <div className="report-indicators">
+              {llmAnalysis && [
+                { key: 'coerencia', label: 'Coerência' },
+                { key: 'dominio_assunto', label: 'Domínio' },
+                { key: 'clareza_objetividade', label: 'Clareza' },
+                { key: 'organizacao_ideias', label: 'Organização' },
+              ].map((item) => {
+                const block = llmAnalysis[item.key];
+                const value = block?.nota != null ? Number(block.nota) : 0;
+                return (
+                  <div key={item.key} className="report-indicator">
+                    <div className="report-indicator-label">
+                      <span>{item.label}</span>
+                      <strong>{value.toFixed(1)}</strong>
+                    </div>
+                    <div className="report-progress">
+                      <div className="report-progress-fill" style={{ width: `${Math.min(value, 10) * 10}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="report-content">
+              {report.report}
+            </div>
+
+            <div className="report-footer">
+              <p className="report-meta">
+                Gerado em {new Date(report.generated_at).toLocaleString("pt-BR")}
+              </p>
+              <button className="btn primary report-save-button" onClick={handleSaveReport}>
+                Salvar Relatório
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reportError && (
+        <div className="error-banner">
+          <span>{reportError}</span>
+          <button
+            className="btn secondary"
+            onClick={() => setReportError(null)}
+          >
+            Fechar
+          </button>
+        </div>
+      )}
     </div>
   );
 }

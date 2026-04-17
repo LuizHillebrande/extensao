@@ -29,7 +29,6 @@ config = (
     else Config(RepositoryEmpty())
 )
 
-
 # SECURITY
 SECRET_KEY = config(
     'SECRET_KEY',

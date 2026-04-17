@@ -342,162 +342,104 @@ export function AnalysisPage({
           className="btn btn-back"
           onClick={goToMenu}
         >
-          ← Voltar ao menu
+          ← Menu
         </button>
         <h1 className="title">Análise Facial em Tempo Real</h1>
       </div>
 
-      <div className="cameraWrap">
-        <video
-          ref={videoRef}
-          className="video"
-          autoPlay
-          playsInline
-          muted
-        />
-        <canvas ref={overlayCanvasRef} className="overlay" />
-        <canvas ref={captureCanvasRef} className="capture" />
-      </div>
+      <div className="analysis-content-wrapper">
+        <div className="cameraWrap">
+          <video
+            ref={videoRef}
+            className="video"
+            autoPlay
+            playsInline
+            muted
+          />
+          <canvas ref={overlayCanvasRef} className="overlay" />
+          <canvas ref={captureCanvasRef} className="capture" />
+        </div>
 
-      <div className="status">
-        {status.analiseAviso && (
-          <div className="analysis-warning" role="alert">
-            <strong>Serviço de análise:</strong> {status.analiseAviso}
+        <div className="status recordingBox">
+          <div className="recordingButtons">
+            <button className="btn" onClick={startRecording} disabled={recordingState.isRecording}>
+              ▶ Iniciar Entrevista
+            </button>
+            <button className="btn danger" onClick={stopRecording} disabled={!recordingState.isRecording}>
+              ⏹ Encerrar
+            </button>
           </div>
-        )}
-        <div><strong>Rosto:</strong> {status.rosto_detectado ? "Detectado" : "Não detectado"}</div>
-        <div><strong>Olhos:</strong> {status.olhos ? (status.olhos === "abertos" ? "Abertos" : "Fechados") : "-"}</div>
-        <div><strong>Postura:</strong> {status.postura ? (status.postura === "boa" ? "Boa postura" : "Fora de posição") : "-"}</div>
-        {status.ear != null && (
-          <div><strong>EAR:</strong> {Number(status.ear).toFixed(3)}</div>
-        )}
-      </div>
+        </div>
 
-      <div className="status analysis-insights">
-        <div className="analysis-insights-title">Atenção e olhar</div>
-        <div><strong>Olhar:</strong> {gz ? formatOlhar(gz.olhar) : "-"}</div>
-        {gz && (
-          <div className="analysis-muted">
-            H {gz.horizontal} · V {gz.vertical}
+        <div className="status analysis-transcript">
+          <div className="analysis-insights-title">
+            🎤 Transcrição em Tempo Real {isListening && <span className="recording-indicator">● ao vivo</span>}
           </div>
-        )}
-        <div><strong>Atenção (0–10):</strong> {status.atencao != null ? status.atencao : "-"}</div>
-      </div>
-
-      <div className="status analysis-insights">
-        <div className="analysis-insights-title">Emoção (estimativa geométrica)</div>
-        {em ? (
-          <>
-            <div className="analysis-score-row"><span>Felicidade</span><span>{em.felicidade}</span></div>
-            <div className="analysis-score-row"><span>Confiança</span><span>{em.confianca}</span></div>
-            <div className="analysis-score-row"><span>Nervosismo</span><span>{em.nervosismo}</span></div>
-            <div className="analysis-score-row"><span>Tensão</span><span>{em.tensao}</span></div>
-          </>
-        ) : (
-          <div className="analysis-muted">—</div>
-        )}
-      </div>
-
-      <div className="status analysis-insights">
-        <div className="analysis-insights-title">Scores</div>
-        {sc ? (
-          <>
-            <div className="analysis-score-row"><span>Atenção</span><span>{sc.atencao}</span></div>
-            <div className="analysis-score-row"><span>Postura</span><span>{sc.postura}</span></div>
-            <div className="analysis-score-row"><span>Engajamento</span><span>{sc.engajamento}</span></div>
-          </>
-        ) : (
-          <div className="analysis-muted">—</div>
-        )}
-      </div>
-
-      <div className="status recordingBox">
-        <div className="recordingButtons">
-          <button className="btn" onClick={startRecording} disabled={recordingState.isRecording}>
-            Iniciar
-          </button>
-          <button className="btn danger" onClick={stopRecording} disabled={!recordingState.isRecording}>
-            Parar
-          </button>
-        </div>
-
-        <div className="recordingMeta">
-          <div><strong>Contador (somente quando rosto detectado):</strong> {recordingState.isRecording ? "Ativo" : "Inativo"}</div>
-          <div>Olho aberto: {recordingState.seconds_eyes_open.toFixed(1)}s</div>
-          <div>Olho fechado: {recordingState.seconds_eyes_closed.toFixed(1)}s</div>
-          <div>Postura boa: {recordingState.seconds_posture_good.toFixed(1)}s</div>
-          <div>Postura ruim: {recordingState.seconds_posture_bad.toFixed(1)}s</div>
-        </div>
-      </div>
-
-      {speechError && (
-        <div className="status analysis-warning">
-          <div className="analysis-insights-title">⚠️ Erro de Microfone</div>
-          <div>{speechError}</div>
-        </div>
-      )}
-
-      {(llmLoading || llmError || llmAnalysis) && (
-        <div className="status analysis-llm">
-          <div className="analysis-insights-title">Análise da entrevista (IA)</div>
-          {llmLoading && <div className="analysis-muted">A gerar feedback com base na transcrição…</div>}
-          {llmError && !llmLoading && (
-            <div className="analysis-warning" role="alert">
-              {llmError}
+          {transcript || interimTranscript ? (
+            <div className="transcript-text">
+              <span className="transcript-final">{transcript}</span>
+              <span className="transcript-interim">{interimTranscript}</span>
+            </div>
+          ) : (
+            <div className="analysis-muted">
+              {recordingState.isRecording
+                ? "Falando... o texto aparecerá aqui"
+                : "Clique em 'Iniciar Entrevista' para começar"}
             </div>
           )}
-          {llmAnalysis && !llmLoading && (
-            <div className="llm-result">
-              {["coerencia", "dominio_assunto", "clareza_objetividade", "organizacao_ideias"].map((key) => {
-                const block = llmAnalysis[key];
-                if (!block || typeof block !== "object") return null;
-                const labels = {
-                  coerencia: "Coerência",
-                  dominio_assunto: "Domínio do assunto",
-                  clareza_objetividade: "Clareza e objetividade",
-                  organizacao_ideias: "Organização das ideias",
-                };
-                return (
-                  <div key={key} className="llm-criterion">
-                    <div className="llm-criterion-head">
-                      <strong>{labels[key]}</strong>
-                      <span className="llm-nota">{block.nota != null ? Number(block.nota).toFixed(1) : "—"} / 10</span>
+        </div>
+
+        {speechError && (
+          <div className="status analysis-warning">
+            <div className="analysis-insights-title">⚠️ Erro de Microfone</div>
+            <div>{speechError}</div>
+          </div>
+        )}
+
+        {(llmLoading || llmError || llmAnalysis) && (
+          <div className="status analysis-llm">
+            <div className="analysis-insights-title">📊 Análise da Entrevista</div>
+            {llmLoading && <div className="analysis-muted">Analisando resposta...</div>}
+            {llmError && !llmLoading && (
+              <div className="analysis-warning" role="alert">
+                {llmError}
+              </div>
+            )}
+            {llmAnalysis && !llmLoading && (
+              <div className="llm-result">
+                {["coerencia", "dominio_assunto", "clareza_objetividade", "organizacao_ideias"].map((key) => {
+                  const block = llmAnalysis[key];
+                  if (!block || typeof block !== "object") return null;
+                  const labels = {
+                    coerencia: "Coerência",
+                    dominio_assunto: "Domínio",
+                    clareza_objetividade: "Clareza",
+                    organizacao_ideias: "Organização",
+                  };
+                  return (
+                    <div key={key} className="llm-criterion">
+                      <div className="llm-criterion-head">
+                        <strong>{labels[key]}</strong>
+                        <span className="llm-nota">{block.nota != null ? Number(block.nota).toFixed(1) : "—"}/10</span>
+                      </div>
+                      {block.justificativa && (
+                        <p className="llm-justificativa">{block.justificativa}</p>
+                      )}
                     </div>
-                    {block.justificativa && (
-                      <p className="llm-justificativa">{block.justificativa}</p>
-                    )}
+                  );
+                })}
+                {Array.isArray(llmAnalysis.sugestoes) && llmAnalysis.sugestoes.length > 0 && (
+                  <div className="llm-sugestoes">
+                    <strong>Sugestões</strong>
+                    <ul>
+                      {llmAnalysis.sugestoes.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
                   </div>
-                );
-              })}
-              {Array.isArray(llmAnalysis.sugestoes) && llmAnalysis.sugestoes.length > 0 && (
-                <div className="llm-sugestoes">
-                  <strong>Sugestões</strong>
-                  <ul>
-                    {llmAnalysis.sugestoes.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="status analysis-transcript">
-        <div className="analysis-insights-title">
-          🎤 Transcrição em Tempo Real {isListening && <span className="recording-indicator">● ao vivo</span>}
-        </div>
-        {transcript || interimTranscript ? (
-          <div className="transcript-text">
-            <span className="transcript-final">{transcript}</span>
-            <span className="transcript-interim">{interimTranscript}</span>
-          </div>
-        ) : (
-          <div className="analysis-muted">
-            {recordingState.isRecording
-              ? "Falando... o texto aparecerá aqui"
-              : "Clique em 'Iniciar' para começar a transcrição"}
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,3 +1,7 @@
+from datetime import datetime
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -91,6 +95,31 @@ def save_recording(request):
     return JsonResponse({"id": rec.id})
 
 
+def _save_transcript_and_posture_file(
+    transcript: str,
+    behavioral_data: dict[str, float],
+    recording_id: int | None = None,
+) -> str:
+    output_dir = Path(settings.BASE_DIR) / "transcript_records"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"transcript_{recording_id or 'unknown'}_{timestamp}.json"
+    payload = {
+        "recording_id": recording_id,
+        "transcript": transcript,
+        "behavioral_data": {
+            "seconds_eyes_open": behavioral_data.get("seconds_eyes_open", 0),
+            "seconds_eyes_closed": behavioral_data.get("seconds_eyes_closed", 0),
+            "seconds_posture_good": behavioral_data.get("seconds_posture_good", 0),
+            "seconds_posture_bad": behavioral_data.get("seconds_posture_bad", 0),
+        },
+        "saved_at": datetime.now().isoformat(),
+    }
+    path = output_dir / filename
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(path)
+
+
 @csrf_exempt
 @require_POST
 def analyze_interview_transcript(request):
@@ -106,16 +135,70 @@ def analyze_interview_transcript(request):
         return JsonResponse({"detail": "JSON inválido."}, status=400)
 
     transcript = (payload.get("transcript") or "").strip()
+    recording_id = payload.get("recording_id")
     if not transcript:
         return JsonResponse({"detail": "Transcrição vazia."}, status=400)
+    if not recording_id:
+        return JsonResponse({"detail": "ID da gravação é obrigatório."}, status=400)
+
+    from .models import FaceRecording
+    try:
+        recording = FaceRecording.objects.get(id=recording_id)
+    except FaceRecording.DoesNotExist:
+        return JsonResponse({"detail": "Gravação não encontrada."}, status=404)
+
+    behavioral_data = {
+        "seconds_eyes_open": recording.seconds_eyes_open,
+        "seconds_eyes_closed": recording.seconds_eyes_closed,
+        "seconds_posture_good": recording.seconds_posture_good,
+        "seconds_posture_bad": recording.seconds_posture_bad,
+    }
+
+    _save_transcript_and_posture_file(transcript, behavioral_data, recording.id)
 
     from .services.interview_llm import analyze_transcript_with_llm
 
     try:
-        result = analyze_transcript_with_llm(transcript)
+        result = analyze_transcript_with_llm(transcript, behavioral_data)
     except RuntimeError as e:
         return JsonResponse({"detail": str(e)}, status=503)
     except Exception as e:
         return JsonResponse({"detail": f"Falha na análise: {e}"}, status=502)
+
+    return JsonResponse(result)
+
+
+@csrf_exempt
+@require_POST
+def generate_interview_report(request):
+    """
+    Recebe a análise da entrevista e a área profissional selecionada,
+    gerando um relatório personalizado via LLM.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Autenticação necessária."}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") if request.body else "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+
+    interview_analysis = payload.get("interview_analysis")
+    professional_area = (payload.get("professional_area") or "").strip()
+
+    if not interview_analysis or not isinstance(interview_analysis, dict):
+        return JsonResponse({"detail": "Análise da entrevista inválida."}, status=400)
+
+    if not professional_area:
+        return JsonResponse({"detail": "Área profissional é obrigatória."}, status=400)
+
+    from .services.interview_llm import generate_interview_report
+
+    try:
+        result = generate_interview_report(interview_analysis, professional_area)
+    except RuntimeError as e:
+        return JsonResponse({"detail": str(e)}, status=503)
+    except Exception as e:
+        return JsonResponse({"detail": f"Falha ao gerar relatório: {e}"}, status=502)
 
     return JsonResponse(result)
