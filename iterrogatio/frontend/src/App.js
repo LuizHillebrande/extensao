@@ -748,7 +748,7 @@ function App() {
   }, [authLoading, user, location.pathname, navigate]);
 
   useEffect(() => {
-    if (location.pathname === '/entrevistas') {
+    if (location.pathname === '/entrevistas' || location.pathname === '/dashboards') {
       fetchInterviews();
     }
   }, [location.pathname]);
@@ -800,7 +800,18 @@ function App() {
             }}
           />}
         />
-        <Route path="/dashboards" element={<DashboardPage onLogout={handleLogout} />} />
+        <Route path="/dashboards" element={
+          <DashboardPage 
+            interviews={interviews}
+            onLogout={handleLogout}
+            onSelectInterview={(id) => {
+              if (id) {
+                fetchInterviewDetail(id);
+                navigate('/entrevistas');
+              }
+            }}
+          />
+        } />
         <Route path="/usuario" element={<UserPage onLogout={handleLogout} />} />
         <Route path="/comparar-relatorios" element={<ReportsPage onLogout={handleLogout} />} />
         <Route

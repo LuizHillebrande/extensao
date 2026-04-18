@@ -379,13 +379,173 @@ export function InterviewsPage({ interviews, selectedInterview, onLogout, onSele
   );
 }
 
-export function DashboardPage({ onLogout }) {
+export function DashboardPage({ interviews, onLogout, onSelectInterview }) {
+  const [selectedDashboard, setSelectedDashboard] = useState(null);
+
   return (
     <div className="dashboard-view">
       <SideNav onLogout={onLogout} />
       <div className="dashboard-content">
-        <h1>Dashboards</h1>
-        <p>Seus dashboards e gráficos de desempenho aparecerão aqui.</p>
+        {selectedDashboard ? (
+          <div className="dashboard-detail">
+            <button 
+              className="btn secondary" 
+              onClick={() => setSelectedDashboard(null)}
+              style={{ marginBottom: '1.5rem' }}
+            >
+              &lt; Voltar
+            </button>
+            
+            <div className="dashboard-header">
+              <h2>{selectedDashboard.title}</h2>
+              <span className="dashboard-area">{selectedDashboard.professional_area}</span>
+              <p className="dashboard-date">
+                {selectedDashboard.date} às {selectedDashboard.time}
+              </p>
+            </div>
+
+            <div className="dashboards-grid">
+              <section className="dashboard-card">
+                <h3>Notas da Avaliação</h3>
+                <div className="scores-display">
+                  <div className="score-item">
+                    <span>Coerência</span>
+                    <div className="score-value-large">{selectedDashboard.coerencia || '-'}/10</div>
+                  </div>
+                  <div className="score-item">
+                    <span>Domínio</span>
+                    <div className="score-value-large">{selectedDashboard.dominio_assunto || '-'}/10</div>
+                  </div>
+                  <div className="score-item">
+                    <span>Clareza</span>
+                    <div className="score-value-large">{selectedDashboard.clareza_objetividade || '-'}/10</div>
+                  </div>
+                  <div className="score-item">
+                    <span>Organização</span>
+                    <div className="score-value-large">{selectedDashboard.organizacao_ideias || '-'}/10</div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="dashboard-card">
+                <h3>Dados Comportamentais</h3>
+                <div className="behavioral-stats">
+                  <div className="stat-item">
+                    <span className="stat-label">Olhos Abertos</span>
+                    <span className="stat-value">{selectedDashboard.seconds_eyes_open || '0'}s</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Olhos Fechados</span>
+                    <span className="stat-value">{selectedDashboard.seconds_eyes_closed || '0'}s</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Boa Postura</span>
+                    <span className="stat-value">{selectedDashboard.seconds_posture_good || '0'}s</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Má Postura</span>
+                    <span className="stat-value">{selectedDashboard.seconds_posture_bad || '0'}s</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="dashboard-card dashboard-card-full">
+                <h3>Resumo da Avaliação</h3>
+                <div className="evaluation-summary">
+                  {selectedDashboard.coerencia_justificativa && (
+                    <div className="summary-item">
+                      <h4>Coerência</h4>
+                      <p>{selectedDashboard.coerencia_justificativa}</p>
+                    </div>
+                  )}
+                  {selectedDashboard.dominio_assunto_justificativa && (
+                    <div className="summary-item">
+                      <h4>Domínio do Assunto</h4>
+                      <p>{selectedDashboard.dominio_assunto_justificativa}</p>
+                    </div>
+                  )}
+                  {selectedDashboard.clareza_objetividade_justificativa && (
+                    <div className="summary-item">
+                      <h4>Clareza e Objetividade</h4>
+                      <p>{selectedDashboard.clareza_objetividade_justificativa}</p>
+                    </div>
+                  )}
+                  {selectedDashboard.organizacao_ideias_justificativa && (
+                    <div className="summary-item">
+                      <h4>Organização das Ideias</h4>
+                      <p>{selectedDashboard.organizacao_ideias_justificativa}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            <button 
+              className="btn primary" 
+              onClick={() => onSelectInterview(selectedDashboard.id)}
+              style={{ marginTop: '1.5rem' }}
+            >
+              Ver Relatório Completo
+            </button>
+          </div>
+        ) : (
+          <div className="dashboards-list-view">
+            <h1>Dashboards de Desempenho</h1>
+            <p className="dashboards-subtitle">Selecione uma entrevista para visualizar seu dashboard</p>
+            
+            {interviews.length === 0 ? (
+              <div className="no-dashboards">
+                <p>Nenhuma entrevista realizada ainda.</p>
+              </div>
+            ) : (
+              <div className="dashboards-list">
+                {interviews.map((interview) => (
+                  <div key={interview.id} className="dashboard-list-item">
+                    <div className="dashboard-list-header">
+                      <h3>{interview.title}</h3>
+                      <span className="dashboard-list-date">{interview.date}</span>
+                    </div>
+                    <div className="dashboard-list-area">
+                      <span className="area-tag">{interview.professional_area}</span>
+                      <span className="avg-score">Média: {interview.average_score}/10</span>
+                    </div>
+                    <button 
+                      className="btn primary btn-view-dashboard"
+                      onClick={async () => {
+                        const res = await fetch(`/api/interview/${interview.id}/`);
+                        if (res.ok) {
+                          const data = await res.json();
+                          setSelectedDashboard({
+                            id: interview.id,
+                            title: interview.title,
+                            date: interview.date,
+                            time: data.time_formatted,
+                            professional_area: interview.professional_area,
+                            average_score: interview.average_score,
+                            coerencia: data.analysis?.coerencia?.nota,
+                            dominio_assunto: data.analysis?.dominio_assunto?.nota,
+                            clareza_objetividade: data.analysis?.clareza_objetividade?.nota,
+                            organizacao_ideias: data.analysis?.organizacao_ideias?.nota,
+                            coerencia_justificativa: data.analysis?.coerencia?.justificativa,
+                            dominio_assunto_justificativa: data.analysis?.dominio_assunto?.justificativa,
+                            clareza_objetividade_justificativa: data.analysis?.clareza_objetividade?.justificativa,
+                            organizacao_ideias_justificativa: data.analysis?.organizacao_ideias?.justificativa,
+                            seconds_eyes_open: data.behavioral_data?.seconds_eyes_open?.toFixed(1),
+                            seconds_eyes_closed: data.behavioral_data?.seconds_eyes_closed?.toFixed(1),
+                            seconds_posture_good: data.behavioral_data?.seconds_posture_good?.toFixed(1),
+                            seconds_posture_bad: data.behavioral_data?.seconds_posture_bad?.toFixed(1),
+                          });
+                        }
+                      }}
+                    >
+                      Ver Dashboard →
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
