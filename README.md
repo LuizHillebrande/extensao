@@ -18,7 +18,7 @@ Ao parar a entrevista, a transcrição captada no frontend é enviada ao backend
 - Frontend: React (Create React App)
 - Backend: Django
 - Visão computacional: OpenCV + MediaPipe
-- Banco: PostgreSQL
+- Banco: PostgreSQL(Lembre de instalar ele para conseguir rodar o codigo, senao ira dar erro)
 - LLM: Groq API
 
 ## Pré-requisitos
@@ -60,6 +60,7 @@ No arquivo `iterrogatio/.env`, adicione (sem aspas; a chave começa com `gsk_`):
 ```env
 GROQ_API_KEY=gsk_sua_chave_aqui
 GROQ_MODEL=llama-3.1-8b-instant
+DB_NAME = yourDB
 ```
 
 Depois, reinicie o backend para carregar as variáveis:
