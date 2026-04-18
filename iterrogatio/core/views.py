@@ -185,6 +185,8 @@ def generate_interview_report(request):
 
     interview_analysis = payload.get("interview_analysis")
     professional_area = (payload.get("professional_area") or "").strip()
+    transcript = (payload.get("transcript") or "").strip()
+    recording_id = payload.get("recording_id")
 
     if not interview_analysis or not isinstance(interview_analysis, dict):
         return JsonResponse({"detail": "Análise da entrevista inválida."}, status=400)
@@ -192,13 +194,117 @@ def generate_interview_report(request):
     if not professional_area:
         return JsonResponse({"detail": "Área profissional é obrigatória."}, status=400)
 
-    from .services.interview_llm import generate_interview_report
+    from .services.interview_llm import generate_interview_report as generate_report_llm
+    from .models import Interview, FaceRecording
 
     try:
-        result = generate_interview_report(interview_analysis, professional_area)
+        result = generate_report_llm(interview_analysis, professional_area)
     except RuntimeError as e:
         return JsonResponse({"detail": str(e)}, status=503)
     except Exception as e:
         return JsonResponse({"detail": f"Falha ao gerar relatório: {e}"}, status=502)
 
+    # Salvar entrevista no banco de dados
+    try:
+        recording = None
+        behavioral_data = {}
+        
+        if recording_id:
+            try:
+                recording = FaceRecording.objects.get(id=recording_id)
+                behavioral_data = {
+                    "seconds_eyes_open": recording.seconds_eyes_open,
+                    "seconds_eyes_closed": recording.seconds_eyes_closed,
+                    "seconds_posture_good": recording.seconds_posture_good,
+                    "seconds_posture_bad": recording.seconds_posture_bad,
+                }
+            except FaceRecording.DoesNotExist:
+                pass
+
+        interview = Interview.objects.create(
+            user=request.user,
+            professional_area=professional_area,
+            transcript=transcript,
+            analysis=interview_analysis,
+            report=result.get("report", ""),
+            behavioral_data=behavioral_data,
+            recording=recording
+        )
+        
+        # Adicionar ID da entrevista ao resultado
+        result['interview_id'] = interview.id
+    except Exception as e:
+        # Log do erro mas não rejeita a resposta
+        print(f"Erro ao salvar entrevista: {e}")
+
     return JsonResponse(result)
+
+
+@login_required
+def list_interviews(request):
+    """
+    Lista todas as entrevistas do usuário autenticado.
+    Retorna: [{ id, professional_area, created_at, average_score }]
+    """
+    from .models import Interview
+
+    interviews = Interview.objects.filter(user=request.user).all()
+    
+    interviews_list = []
+    for interview in interviews:
+        # Calcular nota média
+        average_score = 0
+        analysis = interview.analysis
+        
+        if analysis and isinstance(analysis, dict):
+            scores = []
+            for key in ['coerencia', 'dominio_assunto', 'clareza_objetividade', 'organizacao_ideias']:
+                item = analysis.get(key)
+                if item and isinstance(item, dict) and 'nota' in item:
+                    try:
+                        nota = float(item['nota'])
+                        scores.append(nota)
+                    except (ValueError, TypeError):
+                        pass
+            
+            if scores:
+                average_score = sum(scores) / len(scores)
+        
+        interviews_list.append({
+            'id': interview.id,
+            'professional_area': interview.professional_area,
+            'created_at': interview.created_at.isoformat(),
+            'date_formatted': interview.created_at.strftime('%d/%m/%Y'),
+            'time_formatted': interview.created_at.strftime('%H:%M:%S'),
+            'average_score': round(average_score, 1),
+        })
+
+    return JsonResponse({'interviews': interviews_list})
+
+
+@login_required
+def get_interview_detail(request, interview_id):
+    """
+    Retorna os detalhes de uma entrevista específica.
+    """
+    from .models import Interview
+
+    try:
+        interview = Interview.objects.get(id=interview_id, user=request.user)
+    except Interview.DoesNotExist:
+        return JsonResponse({"detail": "Entrevista não encontrada."}, status=404)
+
+    return JsonResponse({
+        'id': interview.id,
+        'professional_area': interview.professional_area,
+        'transcript': interview.transcript,
+        'analysis': interview.analysis,
+        'report': interview.report,
+        'behavioral_data': interview.behavioral_data,
+        'created_at': interview.created_at.isoformat(),
+        'date_formatted': interview.created_at.strftime('%d/%m/%Y'),
+        'time_formatted': interview.created_at.strftime('%H:%M:%S'),
+    })
+
+
+

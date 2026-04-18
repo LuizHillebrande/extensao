@@ -233,32 +233,147 @@ export function MenuPage({
   );
 }
 
-export function InterviewsPage({ interviews, onLogout }) {
+export function InterviewsPage({ interviews, selectedInterview, onLogout, onSelectInterview }) {
   return (
     <div className="interviews-view">
       <SideNav onLogout={onLogout} />
       <div className="interviews-content">
         <h1 className="interviews-title">MINHAS ENTREVISTAS</h1>
-        <div className="interviews-list">
-          {interviews.map((interview) => (
-            <div key={interview.id} className="interview-card">
-              <div className="interview-header">
-                <h3 className="interview-name">{interview.title}</h3>
-                <span className="interview-date">{interview.date}</span>
-              </div>
-              <div className="interview-footer">
-                <span
-                  className={`interview-status ${
-                    interview.status === "Concluída" ? "completed" : "analyzing"
-                  }`}
-                >
-                  {interview.status === "Concluída" ? "✓" : "⏳"} {interview.status}
-                </span>
-                <button className="btn btn-small">Ver Relatório &gt;</button>
-              </div>
+        
+        {selectedInterview ? (
+          <div className="interview-detail">
+            <button 
+              className="btn secondary" 
+              onClick={() => onSelectInterview(null)}
+              style={{ marginBottom: '1.5rem' }}
+            >
+              &lt; Voltar
+            </button>
+            
+            <div className="interview-detail-header">
+              <h2>{selectedInterview.title || 'Entrevista'}</h2>
+              <span className="interview-detail-area">{selectedInterview.professional_area}</span>
+              <p className="interview-detail-date">
+                {selectedInterview.date_formatted} às {selectedInterview.time_formatted}
+              </p>
             </div>
-          ))}
-        </div>
+
+            <div className="interview-sections">
+              <section className="interview-section">
+                <h3>Área Profissional</h3>
+                <p>{selectedInterview.professional_area}</p>
+              </section>
+
+              <section className="interview-section">
+                <h3>Transcrição</h3>
+                <div className="interview-transcript">
+                  {selectedInterview.transcript}
+                </div>
+              </section>
+
+              <section className="interview-section">
+                <h3>Análise da IA</h3>
+                <div className="interview-analysis">
+                  {selectedInterview.analysis && (
+                    <>
+                      {['coerencia', 'dominio_assunto', 'clareza_objetividade', 'organizacao_ideias'].map((key) => {
+                        const item = selectedInterview.analysis[key];
+                        const label = {
+                          coerencia: 'Coerência',
+                          dominio_assunto: 'Domínio do Assunto',
+                          clareza_objetividade: 'Clareza e Objetividade',
+                          organizacao_ideias: 'Organização das Ideias'
+                        }[key];
+                        
+                        return item ? (
+                          <div key={key} className="analysis-item">
+                            <h4>{label}</h4>
+                            <p className="analysis-score">Nota: {item.nota}/10</p>
+                            <p className="analysis-justification">{item.justificativa}</p>
+                          </div>
+                        ) : null;
+                      })}
+                    </>
+                  )}
+                </div>
+              </section>
+
+              <section className="interview-section">
+                <h3>Relatório Personalizado</h3>
+                <div className="interview-report">
+                  {selectedInterview.report}
+                </div>
+              </section>
+
+              {selectedInterview.behavioral_data && Object.keys(selectedInterview.behavioral_data).length > 0 && (
+                <section className="interview-section">
+                  <h3>Dados Comportamentais</h3>
+                  <div className="interview-behavioral">
+                    <div className="behavioral-item">
+                      <span>Olhos Abertos:</span>
+                      <strong>{selectedInterview.behavioral_data.seconds_eyes_open?.toFixed(1) || '0'}s</strong>
+                    </div>
+                    <div className="behavioral-item">
+                      <span>Olhos Fechados:</span>
+                      <strong>{selectedInterview.behavioral_data.seconds_eyes_closed?.toFixed(1) || '0'}s</strong>
+                    </div>
+                    <div className="behavioral-item">
+                      <span>Postura Boa:</span>
+                      <strong>{selectedInterview.behavioral_data.seconds_posture_good?.toFixed(1) || '0'}s</strong>
+                    </div>
+                    <div className="behavioral-item">
+                      <span>Má Postura:</span>
+                      <strong>{selectedInterview.behavioral_data.seconds_posture_bad?.toFixed(1) || '0'}s</strong>
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="interviews-list">
+            {interviews.length === 0 ? (
+              <p className="no-interviews">Nenhuma entrevista realizada ainda.</p>
+            ) : (
+              interviews.map((interview) => (
+                <div key={interview.id} className="interview-card">
+                  <div className="interview-header">
+                    <h3 className="interview-name">{interview.title}</h3>
+                    <span className="interview-date">{interview.date}</span>
+                  </div>
+                  <div className="interview-card-middle">
+                    <div className="interview-area-tag">{interview.professional_area}</div>
+                    <div className="interview-score-display">
+                      <div className="score-label">Média</div>
+                      <div className="score-value">{interview.average_score?.toFixed(1) || '0'}/10</div>
+                      <div className="score-bar">
+                        <div 
+                          className="score-bar-fill"
+                          style={{ width: `${(interview.average_score || 0) * 10}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="interview-footer">
+                    <span
+                      className={`interview-status ${
+                        interview.status === "Concluída" ? "completed" : "analyzing"
+                      }`}
+                    >
+                      {interview.status === "Concluída" ? "✓" : "⏳"} {interview.status}
+                    </span>
+                    <button 
+                      className="btn btn-small"
+                      onClick={() => onSelectInterview(interview.id)}
+                    >
+                      Ver Relatório &gt;
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -452,8 +452,9 @@
   background: rgba(59, 91, 160, 0.15);
   border: 1px solid rgba(59, 91, 160, 0.3);
   border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 20px;
   align-items: center;
 }
 
@@ -477,10 +478,65 @@
   color: #888fa0;
 }
 
+.interview-card-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  justify-self: center;
+}
+
+.interview-area-tag {
+  display: inline-block;
+  background: rgba(125, 211, 168, 0.2);
+  color: #7dd3a8;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.interview-score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-label {
+  font-size: 11px;
+  color: #888fa0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.score-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #7dd3a8;
+}
+
+.score-bar {
+  width: 80px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7dd3a8 0%, #65b88d 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
 .interview-footer {
   display: flex;
   gap: 20px;
   align-items: center;
+  justify-self: flex-end;
 }
 
 .interview-status {
@@ -510,6 +566,162 @@
 
 .btn-small:hover {
   background: rgba(255, 255, 255, 0.15) !important;
+}
+
+@media (max-width: 820px) {
+  .interview-card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .interview-card-middle {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .interview-footer {
+    width: 100%;
+    justify-self: auto;
+  }
+}
+
+/* Interview Detail View */
+.interview-detail {
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 0;
+}
+
+.interview-detail-header {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(125, 211, 168, 0.2);
+}
+
+.interview-detail-header h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 28px;
+  color: #e8eefc;
+}
+
+.interview-detail-area {
+  display: inline-block;
+  background: rgba(125, 211, 168, 0.15);
+  color: #7dd3a8;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.interview-detail-date {
+  margin: 0.5rem 0 0 0;
+  color: #888fa0;
+  font-size: 14px;
+}
+
+.interview-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.interview-section {
+  padding: 1.5rem;
+  background: rgba(59, 91, 160, 0.1);
+  border: 1px solid rgba(59, 91, 160, 0.2);
+  border-radius: 10px;
+}
+
+.interview-section h3 {
+  margin: 0 0 1rem 0;
+  color: #7dd3a8;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.interview-transcript,
+.interview-report {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1rem;
+  border-radius: 6px;
+  line-height: 1.6;
+  color: #e8eefc;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.interview-analysis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.analysis-item {
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 3px solid #7dd3a8;
+}
+
+.analysis-item h4 {
+  margin: 0 0 0.5rem 0;
+  color: #7dd3a8;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.analysis-score {
+  margin: 0.3rem 0;
+  color: #ffa500;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.analysis-justification {
+  margin: 0.5rem 0 0 0;
+  color: #a0afc0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.interview-behavioral {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+}
+
+.behavioral-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.behavioral-item span {
+  color: #a0afc0;
+  font-size: 13px;
+}
+
+.behavioral-item strong {
+  color: #7dd3a8;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.no-interviews {
+  text-align: center;
+  color: #888fa0;
+  padding: 3rem 1rem;
+  font-size: 16px;
 }
 
 /* =============== DASHBOARD PAGE =============== */

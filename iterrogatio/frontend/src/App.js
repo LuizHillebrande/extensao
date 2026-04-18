@@ -129,11 +129,9 @@ function App() {
   const [report, setReport] = useState(null);
   const [reportError, setReportError] = useState(null);
 
-  const [interviews] = useState([
-    { id: 1, title: "Entrevista 01", date: "12/10/2025", status: "Concluída" },
-    { id: 2, title: "Entrevista 02", date: "15/10/2025", status: "Concluída" },
-    { id: 3, title: "Entrevista 03", date: "20/10/2025", status: "Em Análise" },
-  ]);
+  const [interviews, setInterviews] = useState([]);
+  const [selectedInterview, setSelectedInterview] = useState(null);
+  const [loadingInterviews, setLoadingInterviews] = useState(false);
 
   async function saveRecording() {
     const payload = { ...accumRef.current };
@@ -387,6 +385,8 @@ function App() {
         body: JSON.stringify({
           interview_analysis: llmAnalysis,
           professional_area: professionalArea,
+          transcript: transcript,
+          recording_id: recordingId,
         }),
       });
 
@@ -397,10 +397,54 @@ function App() {
 
       setReport(data);
       setShowProfessionalModal(false);
+      
+      // Recarregar lista de entrevistas após gerar novo relatório
+      fetchInterviews();
     } catch (e) {
       setReportError(e.message || "Falha ao gerar o relatório.");
     } finally {
       setReportLoading(false);
+    }
+  }
+
+  async function fetchInterviews() {
+    setLoadingInterviews(true);
+    try {
+      const res = await fetch("/api/interview/list/", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const interviewsList = data.interviews.map((iv, index) => ({
+          id: iv.id,
+          title: `Entrevista ${String(index + 1).padStart(2, '0')}`,
+          date: iv.date_formatted,
+          average_score: iv.average_score,
+          professional_area: iv.professional_area,
+          status: "Concluída",
+        }));
+        setInterviews(interviewsList);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar entrevistas:", e);
+    } finally {
+      setLoadingInterviews(false);
+    }
+  }
+
+  async function fetchInterviewDetail(interviewId) {
+    try {
+      const res = await fetch(`/api/interview/${interviewId}/`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedInterview(data);
+      } else {
+        console.error("Erro ao carregar detalhes da entrevista");
+      }
+    } catch (e) {
+      console.error("Erro:", e);
     }
   }
 
@@ -704,6 +748,12 @@ function App() {
   }, [authLoading, user, location.pathname, navigate]);
 
   useEffect(() => {
+    if (location.pathname === '/entrevistas') {
+      fetchInterviews();
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
     ensureAuthState();
   }, []);
 
@@ -737,7 +787,18 @@ function App() {
         />
         <Route
           path="/entrevistas"
-          element={<InterviewsPage interviews={interviews} onLogout={handleLogout} />}
+          element={<InterviewsPage 
+            interviews={interviews} 
+            selectedInterview={selectedInterview} 
+            onLogout={handleLogout}
+            onSelectInterview={(id) => {
+              if (id) {
+                fetchInterviewDetail(id);
+              } else {
+                setSelectedInterview(null);
+              }
+            }}
+          />}
         />
         <Route path="/dashboards" element={<DashboardPage onLogout={handleLogout} />} />
         <Route path="/usuario" element={<UserPage onLogout={handleLogout} />} />
