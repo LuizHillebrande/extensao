@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SideNav } from "./components/SideNav";
 export function LandingPage({ goToAuth }) {
   return (
@@ -277,12 +277,206 @@ export function DashboardPage({ onLogout }) {
 }
 
 export function UserPage({ onLogout }) {
+  const [userData, setUserData] = useState({ username: '', email: '' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [formData, setFormData] = useState({ username: '', email: '' });
+  const [passwordData, setPasswordData] = useState({ old_password: '', new_password: '', confirm_password: '' });
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const getCookie = (name) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch('/api/auth/user/', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated) {
+          setUserData(data.user);
+          setFormData(data.user);
+        } else {
+          setError('Usuário não autenticado.');
+        }
+      } else {
+        setError('Erro ao carregar dados do usuário.');
+      }
+    } catch (err) {
+      setError('Erro de conexão.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await fetch('/api/auth/update/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(formData),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setUserData(data.user);
+        setMessage('Perfil atualizado com sucesso.');
+        setEditing(false);
+      } else {
+        setError(data.detail || 'Erro ao atualizar perfil.');
+      }
+    } catch (err) {
+      setError('Erro de conexão.');
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    try {
+      const response = await fetch('/api/auth/change_password/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify(passwordData),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setMessage(data.detail);
+        setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+      } else {
+        setError(data.detail || 'Erro ao alterar senha.');
+      }
+    } catch (err) {
+      setError('Erro de conexão.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="user-view">
+        <SideNav onLogout={onLogout} />
+        <div className="user-content">
+          <p>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="user-view">
       <SideNav onLogout={onLogout} />
       <div className="user-content">
         <h1>Gerenciar Usuário</h1>
-        <p>Suas configurações de perfil aparecerão aqui.</p>
+        {error && <div className="error">{error}</div>}
+        {message && <div className="success">{message}</div>}
+        <div className="user-profile">
+          <h2>Dados Pessoais</h2>
+          {!editing ? (
+            <div>
+              <p><strong>Usuário:</strong> {userData.username}</p>
+              <p><strong>E-mail:</strong> {userData.email}</p>
+              <button onClick={() => setEditing(true)}>Editar</button>
+            </div>
+          ) : (
+            <form onSubmit={handleUpdateProfile}>
+              <label>
+                Usuário:
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  required
+                />
+              </label>
+              <label>
+                E-mail:
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </label>
+              <div className="button-row">
+                <button type="submit">Salvar</button>
+                <button type="button" onClick={() => { setEditing(false); setFormData(userData); }}>Cancelar</button>
+              </div>
+            </form>
+          )}
+        </div>
+        <div className="user-password">
+          <h2>Alterar Senha</h2>
+          <form onSubmit={handleChangePassword}>
+            <label>
+              Senha Antiga:
+              <input
+                type="password"
+                name="old_password"
+                value={passwordData.old_password}
+                onChange={handlePasswordChange}
+                required
+              />
+            </label>
+            <label>
+              Nova Senha:
+              <input
+                type="password"
+                name="new_password"
+                value={passwordData.new_password}
+                onChange={handlePasswordChange}
+                required
+              />
+            </label>
+            <label>
+              Confirmar Nova Senha:
+              <input
+                type="password"
+                name="confirm_password"
+                value={passwordData.confirm_password}
+                onChange={handlePasswordChange}
+                required
+              />
+            </label>
+            <button type="submit">Alterar Senha</button>
+          </form>
+        </div>
       </div>
     </div>
   );

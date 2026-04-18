@@ -167,7 +167,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
 
 # LLM — Groq (https://console.groq.com/)
-GROQ_API_KEY = config('GROQ_API_KEY', default='')
+GROQ_API_KEY = config('GROQ_API_KEY')
 GROQ_MODEL = config('GROQ_MODEL', default='llama-3.1-8b-instant')
 
 LOGGING = {

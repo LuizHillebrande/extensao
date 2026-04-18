@@ -96,8 +96,9 @@ def _normalize_result(content: str, model: str) -> dict[str, Any]:
 
 
 def analyze_transcript_with_llm(transcript: str, behavioral_data: dict[str, float]) -> dict[str, Any]:
-    raw_key = getattr(settings, "GROQ_API_KEY", "") or ""
-    api_key = raw_key.strip().strip('"').strip("'")
+    api_key = settings.GROQ_API_KEY
+    
+    print("DEBUG settings:", settings.GROQ_API_KEY)
 
     print("KEY EM USO:", api_key)
 

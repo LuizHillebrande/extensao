@@ -100,3 +100,60 @@ def login_api(request):
 def logout_api(request):
     logout(request)
     return JsonResponse({'detail': _('Logout efetuado.')})
+
+
+@require_POST
+def update_user(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'detail': _('Não autenticado.')}, status=401)
+
+    payload = _parse_json(request)
+    if payload is None:
+        return JsonResponse({'detail': _('JSON inválido.')}, status=400)
+
+    user = request.user
+    if 'username' in payload:
+        user.username = payload['username']
+    if 'email' in payload:
+        user.email = payload['email']
+
+    try:
+        user.full_clean()
+        user.save()
+    except Exception as e:
+        return JsonResponse({'detail': str(e)}, status=400)
+
+    return JsonResponse({
+        'user': {
+            'username': user.username,
+            'email': user.email,
+        }
+    })
+
+
+@require_POST
+def change_password(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'detail': _('Não autenticado.')}, status=401)
+
+    payload = _parse_json(request)
+    if payload is None:
+        return JsonResponse({'detail': _('JSON inválido.')}, status=400)
+
+    old_password = payload.get('old_password')
+    new_password = payload.get('new_password')
+    confirm_password = payload.get('confirm_password')
+
+    if not old_password or not new_password or not confirm_password:
+        return JsonResponse({'detail': _('Preencha todos os campos.')}, status=400)
+
+    if new_password != confirm_password:
+        return JsonResponse({'detail': _('As senhas não coincidem.')}, status=400)
+
+    if not request.user.check_password(old_password):
+        return JsonResponse({'detail': _('Senha antiga incorreta.')}, status=400)
+
+    request.user.set_password(new_password)
+    request.user.save()
+
+    return JsonResponse({'detail': _('Senha alterada com sucesso.')})
