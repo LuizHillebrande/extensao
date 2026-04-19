@@ -758,12 +758,384 @@ export function UserPage({ onLogout }) {
 }
 
 export function ReportsPage({ onLogout }) {
+  const [interviews, setInterviews] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [comparison, setComparison] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Buscar lista de entrevistas ao carregar
+  useEffect(() => {
+    fetchInterviews();
+  }, []);
+
+  const fetchInterviews = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/interview/list/", {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Erro ao buscar entrevistas");
+      }
+      setInterviews(data.interviews || []);
+    } catch (err) {
+      setError(err.message || "Falha ao carregar entrevistas");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleSelection = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]
+    );
+  };
+
+  const handleCompare = async () => {
+    if (selectedIds.length < 2) {
+      setError("Selecione pelo menos 2 entrevistas para comparar");
+      return;
+    }
+
+    setCompareLoading(true);
+    setError(null);
+    setComparison(null);
+
+    try {
+      const res = await fetch("/api/interview/compare/", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({ interview_ids: selectedIds }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Erro ao comparar entrevistas");
+      }
+
+      setComparison(data);
+    } catch (err) {
+      setError(err.message || "Falha ao comparar entrevistas");
+    } finally {
+      setCompareLoading(false);
+    }
+  };
+
+  const getCookie = (name) => {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === name + "=") {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  };
+
   return (
     <div className="reports-view">
       <SideNav onLogout={onLogout} />
       <div className="reports-content">
         <h1>Comparar Relatórios</h1>
-        <p>Comparação de entrevistas aparecerá aqui.</p>
+
+        {error && <div className="error-message">{error}</div>}
+
+        <div className="comparison-container">
+          {!comparison ? (
+            <div className="selection-section">
+              <h2>Selecione as Entrevistas para Comparar</h2>
+              <p className="selection-info">
+                Selecione pelo menos 2 entrevistas para visualizar a comparação detalhada
+              </p>
+
+              {loading ? (
+                <div className="loading">Carregando entrevistas...</div>
+              ) : interviews.length === 0 ? (
+                <div className="no-interviews">
+                  Nenhuma entrevista encontrada. Realize entrevistas para poder compará-las.
+                </div>
+              ) : (
+                <>
+                  <div className="interviews-selection">
+                    {interviews.map((interview, idx) => (
+                      <div
+                        key={interview.id}
+                        className={`interview-checkbox-item ${
+                          selectedIds.includes(interview.id) ? "selected" : ""
+                        }`}
+                        onClick={() => toggleSelection(interview.id)}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(interview.id)}
+                          onChange={() => toggleSelection(interview.id)}
+                          className="interview-checkbox"
+                        />
+                        <div className="interview-info">
+                          <div className="interview-number-label">Entrevista {idx + 1}</div>
+                          <div className="interview-area">
+                            {interview.professional_area}
+                          </div>
+                          <div className="interview-date">
+                            {interview.date_formatted} às {interview.time_formatted}
+                          </div>
+                          <div className="interview-score">
+                            Média: {interview.average_score}/10
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="selection-actions">
+                    <div className="selected-count">
+                      {selectedIds.length} entrevista(s) selecionada(s)
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleCompare}
+                      disabled={selectedIds.length < 2 || compareLoading}
+                    >
+                      {compareLoading ? "Comparando..." : "Comparar Entrevistas"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="comparison-results">
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setComparison(null);
+                  setSelectedIds([]);
+                }}
+              >
+                ← Voltar à Seleção
+              </button>
+
+              <h2>Análise Comparativa</h2>
+
+              {/* Resumo das entrevistas */}
+              <div className="comparison-interviews-summary">
+                <h3>Entrevistas Analisadas</h3>
+                <div className="interviews-row">
+                  {comparison.interviews.map((interview, idx) => (
+                    <div key={interview.id} className="interview-summary-card">
+                      <div className="position-badge">#{idx + 1}</div>
+                      <div className="interview-number">Entrevista {idx + 1}</div>
+                      <div className="area-tag">{interview.professional_area}</div>
+                      <div className="date-info">{interview.date_formatted}</div>
+                      <div className="time-info">{interview.time_formatted}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comparação de Critérios */}
+              <div className="criteria-comparison">
+                <h3>Evolução dos Critérios de Avaliação</h3>
+                <div className="criteria-grid">
+                  {Object.entries(comparison.criteria_comparison || {}).map(
+                    ([key, criterion]) => (
+                      <div key={key} className="criterion-card">
+                        <div className="criterion-header">
+                          <h4>{criterion.label}</h4>
+                          <div
+                            className={`trend-badge ${criterion.trend.replace(
+                              /ã/g,
+                              "a"
+                            )}`}
+                          >
+                            {criterion.trend === "melhorou"
+                              ? "📈 Melhorou"
+                              : criterion.trend === "piorou"
+                              ? "📉 Piorou"
+                              : "➡️ Manteve"}
+                          </div>
+                        </div>
+
+                        <div className="score-evolution">
+                          <div className="score-item">
+                            <span className="label">Primeira Entrevista</span>
+                            <span className="score">{criterion.first_score}/10</span>
+                          </div>
+                          <div className="score-change">
+                            {criterion.difference > 0
+                              ? `+${criterion.difference}`
+                              : criterion.difference}
+                          </div>
+                          <div className="score-item">
+                            <span className="label">Última Entrevista</span>
+                            <span className="score">{criterion.last_score}/10</span>
+                          </div>
+                        </div>
+
+                        <div className="criterion-details">
+                          <div className="detail-average">
+                            Média: {criterion.average}/10
+                          </div>
+                          {criterion.details.map((detail, idx) => (
+                            <div key={idx} className="detail-item">
+                              <span className="detail-index">Entrevista {idx + 1}</span>
+                              <span className="detail-score">
+                                {detail.score}/10
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {criterion.details[0]?.justification && (
+                          <div className="justification-section">
+                            <p className="justification-label">Primeira análise:</p>
+                            <p className="justification-text">
+                              {criterion.details[0].justification.substring(0, 150)}
+                              ...
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Comparação de Comportamento */}
+              <div className="behavioral-comparison">
+                <h3>Análise Comportamental</h3>
+                <div className="behavioral-grid">
+                  {Object.entries(comparison.behavioral_comparison || {}).map(
+                    ([key, metric]) => (
+                      <div key={key} className="behavioral-card">
+                        <div className="behavioral-header">
+                          <h4>{metric.label}</h4>
+                          <div
+                            className={`trend-badge ${metric.trend.replace(
+                              /ã/g,
+                              "a"
+                            )}`}
+                          >
+                            {metric.trend === "melhorou"
+                              ? "📈 Melhorou"
+                              : metric.trend === "piorou"
+                              ? "📉 Piorou"
+                              : "➡️ Manteve"}
+                          </div>
+                        </div>
+
+                        <div className="value-evolution">
+                          <div className="value-item">
+                            <span className="label">Primeira</span>
+                            <span className="value">{metric.first_value}s</span>
+                          </div>
+                          <div className="value-change">
+                            {metric.difference > 0
+                              ? `+${metric.difference}s`
+                              : `${metric.difference}s`}
+                          </div>
+                          <div className="value-item">
+                            <span className="label">Última</span>
+                            <span className="value">{metric.last_value}s</span>
+                          </div>
+                        </div>
+
+                        <div className="metric-average">
+                          Média: {metric.average}s
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Resumo de Melhorias */}
+              {comparison.improvements && (
+                <div className="improvements-summary">
+                  <h3>Resumo de Evolução</h3>
+
+                  {comparison.improvements.strengths.length > 0 && (
+                    <div className="improvement-section strengths">
+                      <h4>✨ Melhorias Identificadas</h4>
+                      <ul>
+                        {comparison.improvements.strengths.map((item, idx) => (
+                          <li key={idx}>
+                            <span className="criterion">
+                              {item.criterion}
+                            </span>
+                            <span className="change">
+                              {item.from}/10 → {item.to}/10 (+
+                              {item.improvement})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {comparison.improvements.weaknesses.length > 0 && (
+                    <div className="improvement-section weaknesses">
+                      <h4>⚠️ Áreas que Recuaram</h4>
+                      <ul>
+                        {comparison.improvements.weaknesses.map((item, idx) => (
+                          <li key={idx}>
+                            <span className="criterion">
+                              {item.criterion}
+                            </span>
+                            <span className="change">
+                              {item.from}/10 → {item.to}/10 (-
+                              {item.decline})
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {comparison.improvements.consistent.length > 0 && (
+                    <div className="improvement-section consistent">
+                      <h4>➡️ Áreas Consistentes</h4>
+                      <ul>
+                        {comparison.improvements.consistent.map((item, idx) => (
+                          <li key={idx}>
+                            <span className="criterion">
+                              {item.criterion}
+                            </span>
+                            <span className="score">{item.score}/10</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {comparison.improvements.summary && (
+                    <div className="comparison-meta">
+                      <p>
+                        <strong>Período:</strong>{" "}
+                        {comparison.improvements.summary.date_range}
+                      </p>
+                      <p>
+                        <strong>Total de Entrevistas:</strong>{" "}
+                        {comparison.improvements.summary.total_interviews}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

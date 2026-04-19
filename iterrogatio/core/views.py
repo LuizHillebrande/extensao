@@ -307,4 +307,236 @@ def get_interview_detail(request, interview_id):
     })
 
 
+@csrf_exempt
+@require_POST
+def compare_interviews(request):
+    """
+    Compara duas ou mais entrevistas do usuário.
+    Payload: { interview_ids: [id1, id2, ...] }
+    Retorna análise comparativa: diferenças, melhorias/pioras, média dos scores, etc.
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({"detail": "Autenticação necessária."}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8") if request.body else "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"detail": "JSON inválido."}, status=400)
+
+    interview_ids = payload.get("interview_ids", [])
+    if not interview_ids or len(interview_ids) < 2:
+        return JsonResponse({"detail": "Forneça pelo menos 2 entrevistas para comparar."}, status=400)
+
+    from .models import Interview
+
+    # Buscar entrevistas
+    interviews = Interview.objects.filter(
+        id__in=interview_ids, 
+        user=request.user
+    ).order_by('created_at')
+
+    if interviews.count() < 2:
+        return JsonResponse({"detail": "Entrevistas não encontradas ou acesso negado."}, status=404)
+
+    # Extrair dados para comparação
+    interviews_data = []
+    for interview in interviews:
+        interviews_data.append({
+            'id': interview.id,
+            'professional_area': interview.professional_area,
+            'date_formatted': interview.created_at.strftime('%d/%m/%Y'),
+            'time_formatted': interview.created_at.strftime('%H:%M:%S'),
+            'created_at': interview.created_at.isoformat(),
+            'analysis': interview.analysis or {},
+            'behavioral_data': interview.behavioral_data or {},
+            'report': interview.report,
+        })
+
+    # Calcular comparações
+    comparison = {
+        'interviews': interviews_data,
+        'criteria_comparison': _calculate_criteria_comparison(interviews_data),
+        'behavioral_comparison': _calculate_behavioral_comparison(interviews_data),
+        'improvements': _identify_improvements(interviews_data),
+    }
+
+    return JsonResponse(comparison)
+
+
+def _calculate_criteria_comparison(interviews_data):
+    """
+    Compara os scores dos critérios entre entrevistas.
+    """
+    criteria = ['coerencia', 'dominio_assunto', 'clareza_objetividade', 'organizacao_ideias']
+    criteria_labels = {
+        'coerencia': 'Coerência',
+        'dominio_assunto': 'Domínio do Assunto',
+        'clareza_objetividade': 'Clareza e Objetividade',
+        'organizacao_ideias': 'Organização das Ideias',
+    }
+    
+    comparison = {}
+    for criterion in criteria:
+        scores = []
+        details = []
+        
+        for interview in interviews_data:
+            analysis = interview.get('analysis', {})
+            criterion_data = analysis.get(criterion, {})
+            
+            score = None
+            justification = ""
+            if isinstance(criterion_data, dict):
+                try:
+                    score = float(criterion_data.get('nota', 0))
+                except (ValueError, TypeError):
+                    score = 0
+                justification = criterion_data.get('justificativa', '')
+            
+            scores.append(score)
+            details.append({
+                'interview_id': interview['id'],
+                'date': interview['date_formatted'],
+                'score': score,
+                'justification': justification,
+            })
+        
+        # Calcular diferença
+        if len(scores) >= 2:
+            first_score = scores[0]
+            last_score = scores[-1]
+            difference = last_score - first_score if last_score and first_score else 0
+            trend = "melhorou" if difference > 0 else ("piorou" if difference < 0 else "manteve-se")
+            
+            comparison[criterion] = {
+                'label': criteria_labels[criterion],
+                'details': details,
+                'first_score': first_score,
+                'last_score': last_score,
+                'difference': round(difference, 2),
+                'trend': trend,
+                'average': round(sum(s for s in scores if s) / len([s for s in scores if s]), 2) if scores else 0,
+            }
+    
+    return comparison
+
+
+def _calculate_behavioral_comparison(interviews_data):
+    """
+    Compara dados comportamentais (olhos, postura) entre entrevistas.
+    """
+    behavioral_metrics = {
+        'seconds_eyes_open': 'Tempo com olhos abertos (segundos)',
+        'seconds_eyes_closed': 'Tempo com olhos fechados (segundos)',
+        'seconds_posture_good': 'Tempo com boa postura (segundos)',
+        'seconds_posture_bad': 'Tempo com má postura (segundos)',
+    }
+    
+    comparison = {}
+    for metric, label in behavioral_metrics.items():
+        values = []
+        details = []
+        
+        for interview in interviews_data:
+            behavioral = interview.get('behavioral_data', {})
+            value = float(behavioral.get(metric, 0))
+            values.append(value)
+            details.append({
+                'interview_id': interview['id'],
+                'date': interview['date_formatted'],
+                'value': round(value, 2),
+            })
+        
+        # Calcular diferença
+        if len(values) >= 2:
+            first_value = values[0]
+            last_value = values[-1]
+            difference = last_value - first_value
+            
+            # Para olhos abertos e boa postura, aumentar é melhor
+            if 'open' in metric or 'good' in metric:
+                trend = "melhorou" if difference > 0 else ("piorou" if difference < 0 else "manteve-se")
+            # Para olhos fechados e má postura, diminuir é melhor
+            else:
+                trend = "melhorou" if difference < 0 else ("piorou" if difference > 0 else "manteve-se")
+            
+            comparison[metric] = {
+                'label': label,
+                'details': details,
+                'first_value': round(first_value, 2),
+                'last_value': round(last_value, 2),
+                'difference': round(difference, 2),
+                'trend': trend,
+                'average': round(sum(values) / len(values), 2) if values else 0,
+            }
+    
+    return comparison
+
+
+def _identify_improvements(interviews_data):
+    """
+    Identifica melhorias, pioras e pontos consistentes entre entrevistas.
+    """
+    if len(interviews_data) < 2:
+        return {}
+    
+    criteria = ['coerencia', 'dominio_assunto', 'clareza_objetividade', 'organizacao_ideias']
+    improvements = {
+        'strengths': [],  # Critérios que melhoraram
+        'weaknesses': [],  # Critérios que pioraram
+        'consistent': [],  # Critérios que se mantiveram
+        'summary': {},
+    }
+    
+    first_interview = interviews_data[0]
+    last_interview = interviews_data[-1]
+    
+    for criterion in criteria:
+        first_analysis = first_interview.get('analysis', {}).get(criterion, {})
+        last_analysis = last_interview.get('analysis', {}).get(criterion, {})
+        
+        try:
+            first_score = float(first_analysis.get('nota', 0)) if isinstance(first_analysis, dict) else 0
+            last_score = float(last_analysis.get('nota', 0)) if isinstance(last_analysis, dict) else 0
+        except (ValueError, TypeError):
+            first_score = 0
+            last_score = 0
+        
+        criterion_label = {
+            'coerencia': 'Coerência',
+            'dominio_assunto': 'Domínio do Assunto',
+            'clareza_objetividade': 'Clareza e Objetividade',
+            'organizacao_ideias': 'Organização das Ideias',
+        }.get(criterion, criterion)
+        
+        difference = last_score - first_score
+        
+        if difference > 0.5:
+            improvements['strengths'].append({
+                'criterion': criterion_label,
+                'improvement': round(difference, 2),
+                'from': first_score,
+                'to': last_score,
+            })
+        elif difference < -0.5:
+            improvements['weaknesses'].append({
+                'criterion': criterion_label,
+                'decline': round(abs(difference), 2),
+                'from': first_score,
+                'to': last_score,
+            })
+        else:
+            improvements['consistent'].append({
+                'criterion': criterion_label,
+                'score': last_score,
+            })
+    
+    improvements['summary'] = {
+        'total_interviews': len(interviews_data),
+        'date_range': f"{interviews_data[0]['date_formatted']} a {interviews_data[-1]['date_formatted']}",
+    }
+    
+    return improvements
+
+
 
