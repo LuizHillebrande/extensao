@@ -244,14 +244,15 @@ def generate_interview_report(request):
 def list_interviews(request):
     """
     Lista todas as entrevistas do usuário autenticado.
-    Retorna: [{ id, professional_area, created_at, average_score }]
+    Retorna: [{ id, professional_area, created_at, average_score, sequence }]
+    Ordenadas cronologicamente (mais antiga primeiro).
     """
     from .models import Interview
 
-    interviews = Interview.objects.filter(user=request.user).all()
+    interviews = Interview.objects.filter(user=request.user).order_by('created_at')
     
     interviews_list = []
-    for interview in interviews:
+    for sequence, interview in enumerate(interviews, start=1):
         # Calcular nota média
         average_score = 0
         analysis = interview.analysis
@@ -272,6 +273,7 @@ def list_interviews(request):
         
         interviews_list.append({
             'id': interview.id,
+            'sequence': sequence,
             'professional_area': interview.professional_area,
             'created_at': interview.created_at.isoformat(),
             'date_formatted': interview.created_at.strftime('%d/%m/%Y'),
@@ -329,20 +331,21 @@ def compare_interviews(request):
 
     from .models import Interview
 
-    # Buscar entrevistas
+    # Buscar entrevistas e SEMPRE ordenar cronologicamente
     interviews = Interview.objects.filter(
         id__in=interview_ids, 
         user=request.user
-    ).order_by('created_at')
+    ).order_by('created_at')  # Ascendente: mais antiga primeiro
 
     if interviews.count() < 2:
         return JsonResponse({"detail": "Entrevistas não encontradas ou acesso negado."}, status=404)
 
-    # Extrair dados para comparação
+    # Extrair dados para comparação com número sequencial
     interviews_data = []
-    for interview in interviews:
+    for sequence, interview in enumerate(interviews, start=1):
         interviews_data.append({
             'id': interview.id,
+            'sequence': sequence,  # Número de ordem cronológica (1, 2, 3...)
             'professional_area': interview.professional_area,
             'date_formatted': interview.created_at.strftime('%d/%m/%Y'),
             'time_formatted': interview.created_at.strftime('%H:%M:%S'),

@@ -869,7 +869,7 @@ export function ReportsPage({ onLogout }) {
               ) : (
                 <>
                   <div className="interviews-selection">
-                    {interviews.map((interview, idx) => (
+                    {interviews.map((interview) => (
                       <div
                         key={interview.id}
                         className={`interview-checkbox-item ${
@@ -884,7 +884,7 @@ export function ReportsPage({ onLogout }) {
                           className="interview-checkbox"
                         />
                         <div className="interview-info">
-                          <div className="interview-number-label">Entrevista {idx + 1}</div>
+                          <div className="interview-number-label">Entrevista {interview.sequence}</div>
                           <div className="interview-area">
                             {interview.professional_area}
                           </div>
@@ -932,10 +932,10 @@ export function ReportsPage({ onLogout }) {
               <div className="comparison-interviews-summary">
                 <h3>Entrevistas Analisadas</h3>
                 <div className="interviews-row">
-                  {comparison.interviews.map((interview, idx) => (
+                  {comparison.interviews.map((interview) => (
                     <div key={interview.id} className="interview-summary-card">
-                      <div className="position-badge">#{idx + 1}</div>
-                      <div className="interview-number">Entrevista {idx + 1}</div>
+                      <div className="position-badge">#{interview.sequence}</div>
+                      <div className="interview-number">Entrevista {interview.sequence}</div>
                       <div className="area-tag">{interview.professional_area}</div>
                       <div className="date-info">{interview.date_formatted}</div>
                       <div className="time-info">{interview.time_formatted}</div>
