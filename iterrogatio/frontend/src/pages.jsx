@@ -1162,6 +1162,7 @@ export function AnalysisPage({
   recordingState,
   startRecording,
   stopRecording,
+  cancelRecording,
   transcript,
   interimTranscript,
   isListening,
@@ -1208,6 +1209,9 @@ export function AnalysisPage({
             </button>
             <button className="btn danger" onClick={stopRecording} disabled={!recordingState.isRecording}>
               ⏹ Encerrar
+            </button>
+            <button className="btn secondary" onClick={cancelRecording} disabled={!recordingState.isRecording}>
+              ✕ Cancelar
             </button>
           </div>
         </div>

@@ -476,6 +476,34 @@ def _calculate_behavioral_comparison(interviews_data):
     return comparison
 
 
+@csrf_exempt
+@require_POST
+def delete_recording(request):
+    """
+    Deleta um FaceRecording por ID.
+    Payload: { recording_id: number }
+    """
+    try:
+        payload = json.loads(request.body.decode("utf-8") if request.body else "{}")
+    except Exception:
+        return JsonResponse({"detail": "JSON inválido"}, status=400)
+
+    recording_id = payload.get("recording_id")
+    if not recording_id:
+        return JsonResponse({"detail": "recording_id é obrigatório"}, status=400)
+
+    from .models import FaceRecording
+
+    try:
+        rec = FaceRecording.objects.get(id=recording_id)
+        rec.delete()
+        return JsonResponse({"detail": "Gravação deletada com sucesso"})
+    except FaceRecording.DoesNotExist:
+        return JsonResponse({"detail": "Gravação não encontrada"}, status=404)
+    except Exception as e:
+        return JsonResponse({"detail": str(e)}, status=500)
+
+
 def _identify_improvements(interviews_data):
     """
     Identifica melhorias, pioras e pontos consistentes entre entrevistas.

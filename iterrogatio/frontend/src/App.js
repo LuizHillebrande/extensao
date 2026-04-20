@@ -340,6 +340,41 @@ function App() {
       .finally(() => setLlmLoading(false));
   }, [transcript, interimTranscript, stopListening]);
 
+  const cancelRecording = useCallback(async () => {
+    if (!recordingActiveRef.current) return;
+    recordingActiveRef.current = false;
+    facePresentRef.current = false;
+    lastTickAtRef.current = null;
+    setRecordingState((prev) => ({ ...prev, isRecording: false }));
+    stopListening();
+    clearTranscript();
+
+    // Deletar a gravação se ela foi salva
+    if (recordingId) {
+      try {
+        await fetch("/api/face/delete/", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+          body: JSON.stringify({ recording_id: recordingId }),
+        });
+      } catch (e) {
+        console.error("Erro ao deletar gravação:", e);
+      }
+      setRecordingId(null);
+    }
+
+    // Limpar análises
+    setLlmAnalysis(null);
+    setLlmError(null);
+    
+    // Voltar ao menu
+    navigate("/menu");
+  }, [recordingId, stopListening, clearTranscript, navigate]);
+
   function goToAnalysis() {
     navigate("/analise");
   }
@@ -825,6 +860,7 @@ function App() {
               recordingState={recordingState}
               startRecording={startRecording}
               stopRecording={stopRecording}
+              cancelRecording={cancelRecording}
               transcript={transcript}
               interimTranscript={interimTranscript}
               isListening={isListening}
